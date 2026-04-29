@@ -1,0 +1,14 @@
+# Chiave API — non caricare mai su GitHub
+.env
+
+# Dati personali finanziari
+data/transactions.csv
+data/investments.json
+data/onboarding.json
+
+# File di sistema
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.claude/

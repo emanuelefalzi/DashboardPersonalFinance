@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-logo">
+    <h2>&#9670; Finance</h2>
+    <p>Dashboard personale</p>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item" data-page="onboarding" onclick="switchPage('onboarding')">
+      <span class="icon">&#9733;</span> Onboarding
+    </div>
+    <div class="nav-item" data-page="investimenti" onclick="switchPage('investimenti')">
+      <span class="icon">&#128200;</span> Overview Patrimonio
+    </div>
+    <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+      <span class="icon">&#9783;</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="storico" onclick="switchPage('storico')">
+      <span class="icon">&#9776;</span> Storico
+    </div>
+  </nav>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main">
+
+
+  <!-- ========== PAGE: DASHBOARD ========== -->
+  <div id="page-dashboard" class="page active">
+
+    <!-- Header + month nav -->
+    <div class="db-header">
+      <div>
+        <h1 class="db-title">Dashboard</h1>
+        <p class="db-sub">Panoramica mensile</p>
+      </div>
+      <div class="db-month-nav">
+        <button class="db-arrow" id="dash-prev-btn" onclick="changeMonth(-1)" disabled>
+          <svg width="20" height="16" viewBox="0 0 26 22"><polygon points="22,2 22,20 4,11"/></svg>
+        </button>
+        <span class="db-month-label" id="dash-month-label">—</span>
+        <button class="db-arrow" id="dash-next-btn" onclick="changeMonth(1)" disabled>
+          <svg width="20" height="16" viewBox="0 0 26 22"><polygon points="4,2 4,20 22,11"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main grid: pie card + quad grid -->
+    <div class="db-grid">
+
+      <!-- Spese mese card -->
+      <div class="db-card db-spese-card">
+        <div class="db-spese-body">
+          <div class="db-pie-wrap" id="dash-pie"></div>
+          <div class="db-spese-info">
+            <div class="db-spese-title" id="dash-spese-title">Spese del mese</div>
+            <ul class="db-legend" id="dash-pie-legend"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2×2 quad grid -->
+      <div class="db-quad" id="dash-quad">
+        <div class="db-cell"><div class="db-cell-big">—</div><div class="db-cell-label">Patrimonio</div><div class="db-cell-subs"></div></div>
+        <div class="db-cell"><div class="db-cell-big">—</div><div class="db-cell-label">Rimborso totale</div><div class="db-cell-subs"></div></div>
+        <div class="db-cell"><div class="db-cell-big">—</div><div class="db-cell-label">Banca Generali</div><div class="db-cell-subs"></div></div>
+        <div class="db-cell"><div class="db-cell-big">—</div><div class="db-cell-label">Trade Republic</div><div class="db-cell-subs"></div></div>
+      </div>
+    </div>
+
+    <!-- Trend card (full width) -->
+    <div class="db-card db-trend-card">
+      <div class="db-trend-body">
+        <div class="db-trend-chart-wrap">
+          <div id="dash-trend-svg"></div>
+          <div class="db-trend-xaxis" id="dash-trend-xaxis"></div>
+        </div>
+        <div class="db-trend-right-col">
+          <div class="db-trend-col-title" id="trend-col-title">Patrimonio</div>
+          <ul class="db-actions-list" id="dash-trend-legend"></ul>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+
+  <!-- ========== PAGE: STORICO ========== -->
+  <div id="page-storico" class="page">
+    <div class="page-header">
+      <h1>Storico transazioni</h1>
+      <p>Tutte le transazioni salvate</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Transazioni <span id="storico-count-label" style="font-weight:400;font-size:12px;color:var(--text-muted);margin-left:6px;"></span></span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportStorico()">&#8595; Esporta CSV</button>
+          <button class="btn btn-secondary btn-sm" id="storico-add-btn" onclick="addNewStoricoRow()" title="Aggiungi transazione manuale">&#43; Nuova</button>
+          <button id="storico-salva-btn" class="btn btn-primary btn-sm" onclick="storicoSalva()">&#128190; Salva</button>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <div>
+          <label>Mese</label>
+          <select id="filter-month" onchange="loadStorico()">
+            <option value="">Tutti</option>
+          </select>
+        </div>
+        <div>
+          <label>Categoria</label>
+          <select id="filter-categoria" onchange="loadStorico()">
+            <option value="">Tutte</option>
+          </select>
+        </div>
+        <div>
+          <label>Banca</label>
+          <select id="filter-banca" onchange="loadStorico()">
+            <option value="">Tutte</option>
+            <option>Trade Republic</option>
+            <option>Banca Generali</option>
+            <option>PayPal</option>
+            <option>Altro</option>
+          </select>
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="filter-tipo" onchange="loadStorico()">
+            <option value="">Tutti</option>
+            <option value="spesa">Spesa</option>
+            <option value="entrata">Entrata</option>
+            <option value="investimento">Investimento</option>
+            <option value="cash movement">Cash Movement</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-secondary btn-sm" id="storico-clear-btn" onclick="clearStoricoFilters()" title="Rimuovi tutti i filtri" style="display:none;">&#10005; Rimuovi filtri</button>
+        </div>
+      </div>
+
+      <!-- Bulk action bar (storico) -->
+      <div class="bulk-bar" id="storico-bulk-bar">
+        <span class="bulk-count" id="storico-sel-count">0 selezionate</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteBulkStorico()">&#128465; Elimina</button>
+        <span style="color:var(--text-muted);">|</span>
+        <label style="font-size:12px;color:var(--text-secondary);">Cambia banca:</label>
+        <select id="storico-bulk-banca" style="font-size:12px;">
+          <option value="Trade Republic">Trade Republic</option>
+          <option value="Banca Generali">Banca Generali</option>
+          <option value="PayPal">PayPal</option>
+          <option value="Altro">Altro</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="changeBancaBulkStorico()">Applica</button>
+        <button class="btn btn-secondary btn-sm" onclick="deselectAllStorico()" style="margin-left:auto;">&#10005; Deseleziona tutti</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:32px;padding:10px 8px;"><input type="checkbox" id="storico-select-all" onchange="toggleSelectAllStorico(this)" title="Seleziona tutti"></th>
+              <th>Data</th>
+              <th>Causale</th>
+              <th>Descrizione</th>
+              <th>Importo</th>
+              <th>Categoria</th>
+              <th>Banca</th>
+              <th>Tipo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="storico-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="empty-state" id="storico-empty" style="display:none;">
+        <div class="icon">&#128203;</div>
+        <p>Nessuna transazione trovata</p>
+      </div>
+
+      <div class="pagination" id="storico-pagination"></div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: ONBOARDING ========== -->
+  <div id="page-onboarding" class="page">
+    <div class="db-header">
+      <div>
+        <h1 class="db-title">Onboarding</h1>
+        <p class="db-sub">Carica qui i dati della tua banca per calcolare il Deposito Atteso</p>
+      </div>
+      <button id="onb-save-btn" class="btn btn-primary" onclick="saveOnboarding()">&#128190; Salva</button>
+    </div>
+    <div class="onb-grid" id="onb-grid">
+      <!-- Popolato via JS -->
+    </div>
+
+    <!-- ── Importa Transazioni ── -->
+    <div class="onb-import-header">
+      <h2>Importa Transazioni</h2>
+      <p>Carica un file PDF, Excel o CSV per aggiungere nuove transazioni</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Carica file</div>
+
+      <div style="display:flex; gap:14px; margin-bottom:16px; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:5px;">Banca di origine</label>
+          <select id="banca-select">
+            <option value="Trade Republic">Trade Republic</option>
+            <option value="Banca Generali">Banca Generali</option>
+            <option value="PayPal">PayPal</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">&#128196;</div>
+        <p><strong>Clicca per selezionare</strong> o trascina un file qui</p>
+        <p style="margin-top:6px; font-size:11px; color:var(--text-muted);">Supportati: PDF (Trade Republic), XLS/XLSX (Banca Generali), CSV (PayPal)</p>
+        <input type="file" id="file-input" accept=".pdf,.xls,.xlsx,.csv" style="display:none" onchange="handleFileSelect(this.files[0])" />
+      </div>
+
+      <div class="upload-status" id="upload-status"></div>
+    </div>
+
+    <!-- ── Importa Investimenti ── -->
+    <div class="onb-import-header" style="margin-top:24px;">
+      <h2>Importa Investimenti</h2>
+      <p>Importa mensilmente il valore dei tuoi investimenti tramite pdf</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Estratto Conto Titoli · Trade Republic</div>
+      <div class="upload-zone" id="inv-upload-zone" onclick="document.getElementById('inv-file-input').click()">
+        <div class="upload-icon">&#128202;</div>
+        <p><strong>Clicca per selezionare</strong> o trascina il PDF qui</p>
+        <p style="margin-top:6px; font-size:11px; color:var(--text-muted);">Conto titoli 0716599502 · PDF mensile Trade Republic</p>
+        <input type="file" id="inv-file-input" accept=".pdf" style="display:none" onchange="handleInvFileSelect(this.files[0])" />
+      </div>
+      <div class="upload-status" id="inv-upload-status"></div>
+    </div>
+
+    <!-- REVIEW TABLE — investments -->
+    <div class="card" id="inv-review-card" style="display:none;">
+      <div class="card-title">
+        <span>Posizioni estratte · <span id="inv-review-month">—</span></span>
+        <button class="btn btn-success btn-sm" onclick="confirmInvImport()">&#10003; Conferma e importa</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Identità</th>
+              <th>ISIN</th>
+              <th>Tipo</th>
+              <th style="text-align:right;">Valore di Mercato</th>
+            </tr>
+          </thead>
+          <tbody id="inv-review-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REVIEW TABLE -->
+    <div class="card" id="review-card" style="display:none;">
+      <div class="card-title">
+        <span>Revisione transazioni (<span id="tx-count">0</span>)</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="exportSession()">&#8595; Esporta CSV</button>
+          <button class="btn btn-success btn-sm" onclick="saveTransactions()">&#10003; Conferma e salva</button>
+        </div>
+      </div>
+
+      <div id="duplicate-notice" style="display:none; margin-bottom:12px; padding:8px 12px; background:#fff0f0; border:1px solid #fecaca; border-radius:6px; font-size:12px; color:#dc2626;">
+        &#9888; Alcune transazioni (evidenziate in rosso) potrebbero essere duplicati. Rimuovile se necessario.
+      </div>
+
+      <div id="recon-notice" style="display:none; margin-bottom:12px; padding:10px 14px; border-radius:6px; font-size:12px;"></div>
+
+      <!-- Bulk action bar (review) -->
+      <div class="bulk-bar" id="review-bulk-bar">
+        <span class="bulk-count" id="review-sel-count">0 selezionate</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteBulkReview()">&#128465; Elimina</button>
+        <span style="color:var(--text-muted);">|</span>
+        <label style="font-size:12px;color:var(--text-secondary);">Cambia banca:</label>
+        <select id="review-bulk-banca" style="font-size:12px;">
+          <option value="Trade Republic">Trade Republic</option>
+          <option value="Banca Generali">Banca Generali</option>
+          <option value="PayPal">PayPal</option>
+          <option value="Altro">Altro</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="changeBancaBulkReview()">Applica</button>
+        <button class="btn btn-secondary btn-sm" onclick="deselectAllReview()" style="margin-left:auto;">&#10005; Deseleziona tutti</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:32px;padding:10px 8px;"><input type="checkbox" id="review-select-all" onchange="toggleSelectAllReview(this)" title="Seleziona tutti"></th>
+              <th>Data</th>
+              <th>Causale</th>
+              <th>Descrizione</th>
+              <th>Importo</th>
+              <th>Categoria</th>
+              <th>Banca</th>
+              <th>Tipo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="review-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: OVERVIEW PATRIMONIO ========== -->
+  <div id="page-investimenti" class="page">
+    <div class="page-header">
+      <h1>Overview Patrimonio</h1>
+      <p>Storico mensile di investimenti e depositi bancari — tutto il patrimonio a colpo d'occhio</p>
+    </div>
+
+    <div class="card inv-card">
+      <div class="card-title">
+        <span>Portafoglio <span id="inv-year-label" style="font-weight:400;color:var(--text-muted);font-size:13px;margin-left:6px;"></span></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="inv-scroll-nav">
+            <button class="inv-arr-btn" id="inv-arr-left"  onclick="invScroll(-1)" disabled>&#8249;</button>
+            <button class="inv-arr-btn" id="inv-arr-right" onclick="invScroll(1)"  disabled>&#8250;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="inv-table-wrap" id="inv-table-wrap">
+        <table class="inv-table" id="inv-table">
+          <thead><tr></tr></thead>
+          <tbody id="inv-tbody">
+            <tr><td colspan="15" class="inv-empty">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── Chart popup overlay ── -->
+<div id="chart-popup" onclick="event.stopPropagation()" style="display:none;position:fixed;z-index:9000;pointer-events:auto;">
+  <div id="chart-popup-inner"></div>
+</div>
+
+<script>
+// ============================================================
+// GLOBALS
+// ============================================================
+let sessionTransactions = [];
+let sessionReconciliation = null;
+let selectedReview = new Set();
+let selectedStorico = new Set();
+let availableMonths = [];
+let currentDashMonthIdx = -1;
+let cashMvUnmatched = new Set();   // _idx of orphan cash movements
+let currentDashMonth = new Date().toISOString().slice(0, 7);
+let activePieIdx = null;
+let lastPieData = {};
+let activeTrendKey = null;
+let lastTrendSeries = [];
+let trendWindowStart = null;
+let trendWindowInitialized = false;
+let trendActiveMonth = null;      // "YYYY-MM" clicked on trend chart
+let lastCatBancaData = {};        // { cat: { banca: value } } from dashboard
+let lastDashData     = null;      // last dashboard API response (for re-render on toggle)
+let invDisplayMode   = 'abs';     // 'abs' | 'pct' — investment cell toggle
+let storicoPage = 1;
+const STORICO_PAGE_SIZE = 50;
+let storicoTotal = 0;
+let allStoricoRecords = [];
+
+let CATEGORIES = [];
+const CAT_COLORS = {
+  "Pasto": "#f97316",
+  "Caffè": "#78350f",
+  "Merendine": "#b45309",
+  "Alcol": "#7c2d12",
+  "Spesa": "#84cc16",
+  "Mezzi": "#06b6d4",
+  "Viaggi": "#8b5cf6",
+  "Personali": "#ec4899",
+  "Acquisti Online": "#f59e0b",
+  "Investimento": "#3b82f6",
+  "Paghetta": "#10b981",
+  "Cash Movement": "#14b8a6",
+  "?": "#9ca3af",
+};
+
+const CAUSALI = [
+  "Carta", "Bonifico", "Investimento",
+   "PayPal", "Altro",
+];
+
+async function initCategories() {
+  const res = await fetch('/api/categories');
+  const data = await res.json();
+  CATEGORIES = data.categories;
+  populateFilterCategoria();
+}
+
+function populateFilterCategoria() {
+  const sel = document.getElementById('filter-categoria');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Tutte</option>' +
+    CATEGORIES.map(c => `<option value="${c}"${cur === c ? ' selected' : ''}>${c}</option>`).join('') +
+    '<option value="?">? Non categorizzato</option>';
+}
+
+function buildCategoryOptionsHTML(selected) {
+  const opts = CATEGORIES.map(c =>
+    `<option value="${c}"${selected === c ? ' selected' : ''}>${c}</option>`
+  ).join('');
+  const uncatSel = selected === '?' ? ' selected' : '';
+  return opts +
+    `<option value="?"${uncatSel}>? Non categorizzato</option>` +
+    `<option value="__add__" style="color:#6c63ff;font-style:italic;">+ Aggiungi categoria</option>`;
+}
+
+function buildCausaleOptionsHTML(current) {
+  const all = [...new Set([...CAUSALI, current].filter(Boolean))];
+  return all.map(c => `<option value="${c}"${current === c ? ' selected' : ''}>${c}</option>`).join('');
+}
+
+function buildTipoOptionsHTML(current) {
+  const TIPI = ['spesa', 'entrata', 'investimento', 'cash movement'];
+  return TIPI.map(t => `<option value="${t}"${current === t ? ' selected' : ''}>${t}</option>`).join('');
+}
+
+// "cash movement" ha uno spazio → la classe CSS usa il trattino
+function tipoClass(tipo) {
+  return 'tipo-select tipo-' + (tipo || 'spesa').replace(/\s+/g, '-');
+}
+
+async function handleAddCategory(selectEl, prevValue, onAdded) {
+  selectEl.value = prevValue;
+  const td = selectEl.parentElement;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:4px;margin-top:4px;align-items:center;';
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.placeholder = 'Nuova categoria…';
+  inp.style.cssText = 'flex:1;padding:4px 7px;font-size:12px;border:1px solid var(--accent);border-radius:4px;outline:none;min-width:0;';
+
+  const ok = document.createElement('button');
+  ok.textContent = '✓';
+  ok.style.cssText = 'padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;flex-shrink:0;';
+
+  const cancel = document.createElement('button');
+  cancel.textContent = '✕';
+  cancel.style.cssText = 'padding:3px 8px;background:#e5e7eb;border:none;border-radius:4px;cursor:pointer;font-size:12px;flex-shrink:0;';
+
+  wrap.append(inp, ok, cancel);
+  td.appendChild(wrap);
+  inp.focus();
+
+  const cleanup = () => { wrap.remove(); selectEl.value = prevValue; };
+
+  cancel.onclick = cleanup;
+
+  const confirm = async () => {
+    const name = inp.value.trim();
+    if (!name) return;
+    const res = await fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    CATEGORIES = data.categories;
+    populateFilterCategoria();
+    refreshAllCategorySelects();
+    wrap.remove();
+    onAdded(name);
+  };
+
+  ok.onclick = confirm;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); if (e.key === 'Escape') cleanup(); });
+}
+
+function refreshAllCategorySelects() {
+  document.querySelectorAll('select.cat-select').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = buildCategoryOptionsHTML(cur);
+  });
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function switchPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`[data-page="${name}"]`).classList.add('active');
+
+  if (name === 'dashboard')    loadDashboard();
+  if (name === 'storico')      initStorico();
+  if (name === 'onboarding')   loadOnboarding();
+  if (name === 'investimenti') loadInvestimenti();
+}
+
+// ============================================================
+// ONBOARDING
+// ============================================================
+const ONB_BANKS = ['Trade Republic', 'Banca Generali', 'PayPal', 'Investimento Iniziale'];
+
+async function loadOnboarding() {
+  const res  = await fetch('/api/onboarding');
+  const data = await res.json();
+  renderOnboardingCards(data);
+}
+
+function renderOnboardingCards(data) {
+  const grid = document.getElementById('onb-grid');
+  grid.innerHTML = ONB_BANKS.map(bank => {
+    // backward-compat: "Investimento Iniziale" was previously saved as "Altro"
+    const d   = data[bank] || (bank === 'Investimento Iniziale' ? data['Altro'] : null) || { amount: '', date: '' };
+    const key = bank.replace(/\s+/g, '-');
+    return `
+      <div class="onb-card">
+        <div class="onb-bank-name">${bank}</div>
+        <div class="onb-amount-wrap">
+          <span class="onb-currency">€</span>
+          <input class="onb-amount-input" type="number" step="0.01"
+            id="onb-amount-${key}" value="${d.amount || ''}" placeholder="0">
+        </div>
+        <div class="onb-date-wrap">
+          <label class="onb-date-label">Dal</label>
+          <input class="onb-date-input" type="date"
+            id="onb-date-${key}" value="${d.date || ''}">
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function saveOnboarding() {
+  const data = {};
+  ONB_BANKS.forEach(bank => {
+    const key    = bank.replace(/\s+/g, '-');
+    const amount = parseFloat(document.getElementById(`onb-amount-${key}`).value) || 0;
+    const date   = document.getElementById(`onb-date-${key}`).value || '';
+    data[bank]   = { amount, date };
+  });
+  await fetch('/api/onboarding', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(data),
+  });
+  const btn  = document.getElementById('onb-save-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '&#10003; Salvato';
+  btn.style.background = 'var(--success)';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+}
+
+// ============================================================
+// GESTIONE INVESTIMENTI
+// ============================================================
+let invData = { entities: [] };
+const INV_COL_W = 92; // px per scroll step (3 columns)
+
+async function loadInvestimenti() {
+  try {
+    const r = await fetch('/api/investments');
+    invData = await r.json();
+  } catch(e) {
+    invData = { entities: [], deposits: {} };
+  }
+  renderInvTable();
+}
+
+function renderInvTable() {
+  const table   = document.getElementById('inv-table');
+  const yearLbl = document.getElementById('inv-year-label');
+  if (!table) return;
+
+  const year = new Date().getFullYear();
+  if (yearLbl) yearLbl.textContent = year;
+
+  const MN = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const now = new Date();
+  const currentKey = `${year}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const months12   = MN.map((_, i) => `${year}-${String(i+1).padStart(2,'0')}`);
+
+  const entities = invData.entities || [];
+  const deposits = invData.deposits || {};  // { "Banca Generali": {month: val}, … }
+  const DEPOSIT_BANKS = ['Banca Generali', 'Trade Republic'];
+
+  // ── Latest values for % patrimonio (investments + deposits combined) ──────
+  const latestInvVals = entities.map(e => {
+    const keys = Object.keys(e.values || {}).sort();
+    return keys.length ? parseFloat((e.values || {})[keys[keys.length - 1]] || 0) : 0;
+  });
+  const latestDepVals = DEPOSIT_BANKS.map(b => {
+    const bv   = deposits[b] || {};
+    const keys = Object.keys(bv).sort();
+    return keys.length ? parseFloat(bv[keys[keys.length - 1]] || 0) : 0;
+  });
+  const totalPf = [...latestInvVals, ...latestDepVals].reduce((a, b) => a + b, 0);
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  const thead = table.querySelector('thead tr');
+  thead.innerHTML =
+    `<th class="inv-col-name">Identità</th>` +
+    `<th class="inv-col-type">Tipo</th>` +
+    `<th class="inv-col-pct">% Patr.</th>` +
+    months12.map((mk, i) => {
+      const cls = mk === currentKey ? ' inv-col-current' : '';
+      return `<th class="inv-col-month${cls}">${MN[i]}</th>`;
+    }).join('');
+
+  // ── Body ──────────────────────────────────────────────────────────────────
+  const tbody = document.getElementById('inv-tbody');
+  const hasDeposits = DEPOSIT_BANKS.some(b => Object.keys(deposits[b] || {}).length > 0);
+
+  if (!entities.length && !hasDeposits) {
+    tbody.innerHTML = `<tr><td colspan="15" class="inv-empty">Nessun dato ancora. Importa PDF investimenti o configura l'onboarding per vedere i depositi.</td></tr>`;
+    updateInvScrollArrows();
+    return;
+  }
+
+  let html = '';
+
+  // Investment rows
+  if (entities.length) {
+    html += entities.map((e, ei) => {
+      const pct     = totalPf > 0 ? (latestInvVals[ei] / totalPf * 100).toFixed(1) + '%' : '—';
+      const typeKey = (e.type || 'D').toUpperCase();
+      const badgeCls = typeKey === 'ETF' ? 'inv-type-etf' : typeKey === 'S' ? 'inv-type-s' : 'inv-type-d';
+      const vals = e.values || {};
+      const monthCells = months12.map(mk => {
+        const v   = vals[mk];
+        const cls = mk === currentKey ? ' inv-col-current' : '';
+        const txt = v != null ? invFmtEuro(parseFloat(v)) : '<span style="color:#cbd5e1">—</span>';
+        return `<td class="inv-col-month${cls}">${txt}</td>`;
+      }).join('');
+      return `<tr>
+        <td class="inv-col-name">${esc(e.name)}</td>
+        <td class="inv-col-type"><span class="inv-type-badge ${badgeCls}">${esc(typeKey)}</span></td>
+        <td class="inv-col-pct">${pct}</td>
+        ${monthCells}
+      </tr>`;
+    }).join('');
+  }
+
+  // Deposit section separator + rows
+  if (hasDeposits) {
+    const sepCols = 3 + 12; // name + type + pct + 12 months
+    html += `<tr class="inv-section-sep">
+      <td colspan="${sepCols}">&#127970;&nbsp; Depositi bancari</td>
+    </tr>`;
+
+    DEPOSIT_BANKS.forEach((banca, bi) => {
+      const bv  = deposits[banca] || {};
+      if (!Object.keys(bv).length) return;
+      const latV = latestDepVals[bi];
+      const pct  = totalPf > 0 ? (latV / totalPf * 100).toFixed(1) + '%' : '—';
+      const monthCells = months12.map(mk => {
+        const v   = bv[mk];
+        const cls = mk === currentKey ? ' inv-col-current' : '';
+        const txt = v != null ? invFmtEuro(v) : '<span style="color:#cbd5e1">—</span>';
+        return `<td class="inv-col-month${cls}">${txt}</td>`;
+      }).join('');
+      html += `<tr>
+        <td class="inv-col-name">${esc(banca)}</td>
+        <td class="inv-col-type"><span class="inv-type-badge inv-type-dep">DEP</span></td>
+        <td class="inv-col-pct">${pct}</td>
+        ${monthCells}
+      </tr>`;
+    });
+  }
+
+  tbody.innerHTML = html;
+  updateInvScrollArrows();
+}
+
+function invFmtEuro(v) {
+  const n = Math.round(parseFloat(v || 0));
+  return '€\u202f' + n.toLocaleString('it-IT');
+}
+
+function invScroll(dir) {
+  const wrap = document.getElementById('inv-table-wrap');
+  if (!wrap) return;
+  wrap.scrollBy({ left: dir * INV_COL_W * 3, behavior: 'smooth' });
+  setTimeout(updateInvScrollArrows, 380);
+}
+
+function updateInvScrollArrows() {
+  const wrap = document.getElementById('inv-table-wrap');
+  const lBtn = document.getElementById('inv-arr-left');
+  const rBtn = document.getElementById('inv-arr-right');
+  if (!wrap || !lBtn || !rBtn) return;
+  lBtn.disabled = wrap.scrollLeft <= 0;
+  rBtn.disabled = wrap.scrollLeft >= wrap.scrollWidth - wrap.clientWidth - 1;
+}
+
+// ============================================================
+// IMPORTA INVESTIMENTI
+// ============================================================
+let invReviewData = { month: '', positions: [] };
+
+async function handleInvFileSelect(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('inv-upload-status');
+  document.getElementById('inv-review-card').style.display = 'none';
+  statusEl.textContent = 'Analisi PDF in corso con AI…';
+  statusEl.className = 'upload-status loading';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const r    = await fetch('/api/investments/parse-pdf', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (data.error) {
+      statusEl.textContent = 'Errore: ' + data.error;
+      statusEl.className = 'upload-status error';
+      return;
+    }
+    if (!data.positions || !data.positions.length) {
+      statusEl.textContent = 'Nessuna posizione trovata nel PDF.';
+      statusEl.className = 'upload-status error';
+      return;
+    }
+    invReviewData = data;
+    statusEl.textContent = `✓ Estratte ${data.positions.length} posizioni per ${invFmtMonth(data.month)}`;
+    statusEl.className = 'upload-status success';
+    renderInvReview(data);
+  } catch(e) {
+    statusEl.textContent = 'Errore di rete: ' + e.message;
+    statusEl.className = 'upload-status error';
+  }
+}
+
+function invFmtMonth(key) {
+  if (!key) return '—';
+  const [y, m] = key.split('-');
+  const MN = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+               'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  return (MN[parseInt(m) - 1] || '?') + ' ' + y;
+}
+
+function renderInvReview(data) {
+  document.getElementById('inv-review-month').textContent = invFmtMonth(data.month);
+
+  document.getElementById('inv-review-tbody').innerHTML = data.positions.map((p, i) => {
+    const badgeCls = p.type === 'ETF' ? 'inv-type-etf' : p.type === 'S' ? 'inv-type-s' : p.type === 'D' ? 'inv-type-d' : '';
+    return `<tr>
+      <td>
+        <input class="inv-review-name-input" value="${esc(p.name)}"
+          onchange="invReviewData.positions[${i}].name = this.value" />
+      </td>
+      <td style="color:#94a3b8;font-size:12px;font-family:monospace;">${esc(p.isin)}</td>
+      <td>
+        <select class="inv-type-select-sm" onchange="invReviewData.positions[${i}].type = this.value">
+          <option value="ETF" ${p.type==='ETF'?'selected':''}>ETF</option>
+          <option value="S"   ${p.type==='S'  ?'selected':''}>S</option>
+          <option value="D"   ${p.type==='D'  ?'selected':''}>D</option>
+          <option value="?"   ${p.type==='?'  ?'selected':''}>?</option>
+        </select>
+      </td>
+      <td style="text-align:right;font-variant-numeric:tabular-nums;">${invFmtEuro(p.value)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('inv-review-card').style.display = '';
+}
+
+async function confirmInvImport() {
+  const btn = document.querySelector('#inv-review-card .btn-success');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Salvataggio…';
+  btn.disabled = true;
+
+  try {
+    const r    = await fetch('/api/investments/merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invReviewData),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      const statusEl = document.getElementById('inv-upload-status');
+      statusEl.textContent = `✓ ${data.count} posizioni importate per ${invFmtMonth(invReviewData.month)}`;
+      statusEl.className = 'upload-status success';
+      document.getElementById('inv-review-card').style.display = 'none';
+      document.getElementById('inv-file-input').value = '';
+      // If investments page is open, refresh it
+      if (document.getElementById('page-investimenti').classList.contains('active')) {
+        loadInvestimenti();
+      }
+    }
+  } catch(e) {
+    alert('Errore salvataggio: ' + e.message);
+  } finally {
+    btn.innerHTML = orig;
+    btn.disabled = false;
+  }
+}
+
+// ============================================================
+// UPLOAD & IMPORT
+// ============================================================
+const uploadZone = document.getElementById('upload-zone');
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('dragover');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+});
+
+function setStatus(msg, type) {
+  const el = document.getElementById('upload-status');
+  el.textContent = msg;
+  el.className = 'upload-status ' + type;
+}
+
+async function handleFileSelect(file) {
+  if (!file) return;
+  const banca = document.getElementById('banca-select').value;
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('banca', banca);
+
+  setStatus('Caricamento e analisi in corso… (AI categorizzazione può richiedere alcuni secondi)', 'loading');
+  document.getElementById('review-card').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      setStatus('Errore: ' + (data.error || 'Errore sconosciuto'), 'error');
+      return;
+    }
+    sessionTransactions = data.transactions;
+    sessionReconciliation = data.reconciliation || null;
+    const recon = sessionReconciliation;
+    let statusMsg = `Analizzate ${sessionTransactions.length} transazioni.`;
+    if (recon) {
+      if (recon.ok && recon.checked > 0) {
+        statusMsg += ` ✓ Saldi verificati (${recon.checked} controlli OK).`;
+      } else if (!recon.ok) {
+        statusMsg += ` ⚠ Attenzione: ${recon.issues.length} anomali${recon.issues.length > 1 ? 'e' : 'a'} nei saldi.`;
+      }
+    }
+    statusMsg += ' Verifica e conferma.';
+    setStatus(statusMsg, recon && !recon.ok ? 'warning' : 'success');
+    renderReviewTable();
+  } catch (e) {
+    setStatus('Errore di connessione: ' + e.message, 'error');
+  }
+}
+
+function renderReviewTable() {
+  const tbody = document.getElementById('review-tbody');
+  const card = document.getElementById('review-card');
+  const notice = document.getElementById('duplicate-notice');
+  const reconNotice = document.getElementById('recon-notice');
+
+  document.getElementById('tx-count').textContent = sessionTransactions.length;
+  card.style.display = 'block';
+
+  const hasDups = sessionTransactions.some(t => t._duplicate);
+  notice.style.display = hasDups ? 'block' : 'none';
+
+  // ── Reconciliation notice ────────────────────────────────────────────────
+  const recon = sessionReconciliation;
+  if (!recon) {
+    reconNotice.style.display = 'none';
+  } else if (!recon.ok) {
+    // Warning: missing transactions suspected
+    const issueList = recon.issues.map(s =>
+      `<li style="margin-top:4px;">${s}</li>`
+    ).join('');
+    reconNotice.style.cssText = 'display:block;margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;font-size:12px;color:#92400e;';
+    reconNotice.innerHTML = `
+      <strong>⚠ Possibili transazioni mancanti nel PDF</strong>
+      — trovate ${recon.found} righe (${recon.kept} importate, ${recon.skipped} saltate),
+      verificati ${recon.checked} passaggi di saldo.<br>
+      <ul style="margin:6px 0 0 16px;padding:0;">${issueList}</ul>
+      <span style="display:block;margin-top:6px;color:#78350f;">
+        Controlla manualmente il PDF prima di confermare.
+      </span>`;
+  } else if (recon.checked > 0) {
+    // All clear — compact green badge
+    reconNotice.style.cssText = 'display:block;margin-bottom:12px;padding:7px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:12px;color:#166534;';
+    reconNotice.innerHTML =
+      `✓ Verifica saldi completata: ${recon.found} transazioni trovate nel PDF ` +
+      `(${recon.kept} importate, ${recon.skipped} saltate) — ` +
+      `${recon.checked} passaggi di saldo tutti coerenti.`;
+  } else {
+    reconNotice.style.display = 'none';
+  }
+
+  tbody.innerHTML = '';
+  sessionTransactions.forEach((tx, i) => {
+    const tr = document.createElement('tr');
+    if (tx.categoria === '?') tr.classList.add('highlighted');
+    if (tx._duplicate) tr.classList.add('duplicate-row');
+
+    tr.innerHTML = `
+      <td style="padding:9px 8px;">
+        <input type="checkbox" data-review-idx="${i}"
+          onchange="onReviewCheckbox(this, ${i})"
+          ${selectedReview.has(i) ? 'checked' : ''}>
+      </td>
+      <td>${tx.data || ''}</td>
+      <td>
+        <select style="font-size:11px;" onchange="sessionTransactions[${i}].causale=this.value">
+          ${buildCausaleOptionsHTML(tx.causale || '')}
+        </select>
+      </td>
+      <td style="min-width:160px;">
+        <input class="desc-input" type="text" value="${esc(tx.descrizione)}"
+          oninput="sessionTransactions[${i}].descrizione=this.value">
+      </td>
+      <td class="${amountClass(tx)}">${formatAmount(tx)}</td>
+      <td>
+        <select class="cat-select" data-idx="${i}" data-ctx="review"
+          onchange="onReviewCatChange(this, ${i})">${buildCategoryOptionsHTML(tx.categoria || '?')}</select>
+      </td>
+      <td>${esc(tx.banca || '')}</td>
+      <td>
+        <select class="${tipoClass(tx.tipo)}" style="font-size:11px;"
+          onchange="sessionTransactions[${i}].tipo=this.value; this.className=tipoClass(this.value);">
+          ${buildTipoOptionsHTML(tx.tipo || 'spesa')}
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="removeSessionTx(${i})" title="Rimuovi">&#10005;</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function onReviewCatChange(sel, i) {
+  if (sel.value === '__add__') {
+    handleAddCategory(sel, sessionTransactions[i].categoria || '?', (name) => {
+      sessionTransactions[i].categoria = name;
+      sel.innerHTML = buildCategoryOptionsHTML(name);
+      sel.value = name;
+      sel.closest('tr').classList.remove('highlighted');
+    });
+  } else {
+    sessionTransactions[i].categoria = sel.value;
+    if (sel.value !== '?') sel.closest('tr').classList.remove('highlighted');
+  }
+}
+
+function removeSessionTx(i) {
+  sessionTransactions.splice(i, 1);
+  renderReviewTable();
+}
+
+async function saveTransactions() {
+  const toSave = sessionTransactions.filter(t => !t._duplicate);
+  const res = await fetch('/api/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transactions: toSave }),
+  });
+  const data = await res.json();
+  if (res.ok) {
+    setStatus(`Salvate ${data.saved} transazioni. Totale in archivio: ${data.total}.`, 'success');
+    sessionTransactions = [];
+    selectedReview.clear();
+    document.getElementById('review-card').style.display = 'none';
+  } else {
+    setStatus('Errore salvataggio: ' + (data.error || ''), 'error');
+  }
+}
+
+function exportSession() {
+  // Build CSV client-side from session
+  const cols = ['data','descrizione','importo','categoria','banca','tipo'];
+  let csv = cols.join(',') + '\n';
+  sessionTransactions.forEach(t => {
+    csv += cols.map(c => JSON.stringify(String(t[c] ?? ''))).join(',') + '\n';
+  });
+  downloadBlob(csv, 'transazioni_sessione.csv', 'text/csv');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+const DB_PALETTE = [
+  '#1e5f8e','#f97316','#84cc16','#06b6d4','#8b5cf6',
+  '#ec4899','#f59e0b','#10b981','#14b8a6','#a78bfa',
+  '#f43f5e','#78350f','#b45309',
+];
+
+function changeMonth(delta) {
+  if (!availableMonths.length) return;
+  const next = currentDashMonthIdx + delta;
+  if (next < 0 || next >= availableMonths.length) return;
+  currentDashMonthIdx = next;
+  currentDashMonth = availableMonths[currentDashMonthIdx];
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  // Fetch dashboard data and trend series in parallel
+  const [dashRes, trendRes] = await Promise.all([
+    fetch('/api/dashboard?month=' + currentDashMonth),
+    fetch('/api/trend'),
+  ]);
+  const data = await dashRes.json();
+
+  // Sync available months from API
+  if (data.available_months && data.available_months.length > 0) {
+    availableMonths = data.available_months;
+    const idx = availableMonths.indexOf(currentDashMonth);
+    if (idx === -1) {
+      // Current month has no data — auto-jump to the latest month with data
+      currentDashMonth = availableMonths[availableMonths.length - 1];
+      currentDashMonthIdx = availableMonths.length - 1;
+      loadDashboard();
+      return;
+    }
+    currentDashMonthIdx = idx;
+  }
+
+  // Month label
+  const [y, mo] = currentDashMonth.split('-');
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                      'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  document.getElementById('dash-month-label').textContent =
+    monthNames[parseInt(mo) - 1] + ' ' + y;
+
+  // Arrow buttons
+  document.getElementById('dash-prev-btn').disabled = currentDashMonthIdx <= 0;
+  document.getElementById('dash-next-btn').disabled =
+    currentDashMonthIdx >= availableMonths.length - 1;
+
+  // Reset interactive states when switching months
+  activePieIdx    = null;
+  activeTrendKey  = null;
+  trendActiveMonth = null;
+  lastCatBancaData = data.spese_per_cat_banca || {};
+  hideChartPopup();
+
+  // Render all sections
+  lastDashData = data;
+  renderPieChart(data.spese_per_categoria, data.total_spese);
+  renderQuadGrid(data);
+
+  const trendData = await trendRes.json();
+  renderTrendChart(trendData.series || []);
+}
+
+function renderPieChart(byCategoria, total) {
+  const sortedCats = Object.entries(byCategoria || {}).sort((a,b) => b[1]-a[1]).map(e => e[0]);
+  lastPieData = { byCategoria, total, sortedCats };
+  const pieEl    = document.getElementById('dash-pie');
+  const legendEl = document.getElementById('dash-pie-legend');
+  const titleEl  = document.getElementById('dash-spese-title');
+
+  titleEl.textContent = 'Spese · ' + dbFormatEuro(total);
+
+  const entries = Object.entries(byCategoria || {}).sort((a, b) => b[1] - a[1]);
+
+  if (!entries.length || !total) {
+    pieEl.innerHTML = `<svg viewBox="0 0 250 250" style="width:100%;height:100%;display:block;">
+      <circle cx="125" cy="125" r="115" fill="#e5e7eb"/>
+    </svg>`;
+    legendEl.innerHTML = `<li style="color:#94a3b8;font-size:13px;">Nessuna spesa questo mese</li>`;
+    return;
+  }
+
+  const size = 250, cx = 125, cy = 125, r = 115;
+  let startAngle = -Math.PI / 2;
+  let svgPaths = '';
+
+  entries.forEach(([cat, val], idx) => {
+    const color = CAT_COLORS[cat] || DB_PALETTE[idx % DB_PALETTE.length];
+    const angle = (val / total) * Math.PI * 2;
+    const endAngle = startAngle + angle;
+    const large = angle > Math.PI ? 1 : 0;
+    const x1 = (cx + r * Math.cos(startAngle)).toFixed(2);
+    const y1 = (cy + r * Math.sin(startAngle)).toFixed(2);
+    const x2 = (cx + r * Math.cos(endAngle)).toFixed(2);
+    const y2 = (cy + r * Math.sin(endAngle)).toFixed(2);
+    const isActive = activePieIdx === null || activePieIdx === idx;
+    const opacity = isActive ? '1' : '0.2';
+    svgPaths += `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z"
+      fill="${color}" stroke="#fff" stroke-width="1.5"
+      opacity="${opacity}" style="cursor:pointer;transition:opacity 0.18s"
+      onclick="onPieClick(${idx}, event)"/>`;
+    startAngle = endAngle;
+  });
+
+  pieEl.innerHTML = `<svg viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;display:block;">${svgPaths}</svg>`;
+
+  legendEl.innerHTML = entries.map(([cat, val], idx) => {
+    const color = CAT_COLORS[cat] || DB_PALETTE[idx % DB_PALETTE.length];
+    const isActive = activePieIdx === null || activePieIdx === idx;
+    const opacity = isActive ? '1' : '0.3';
+    return `<li style="cursor:pointer;opacity:${opacity};transition:opacity 0.18s" onclick="onPieClick(${idx}, event)">
+      <span class="db-dot" style="background:${color}"></span>
+      <span class="db-legend-text">${esc(cat)} <span style="color:#94a3b8;font-size:12px;">${dbFormatEuro(val)}</span></span>
+    </li>`;
+  }).join('');
+}
+
+function onPieClick(idx, event) {
+  if (event) event.stopPropagation();
+  const wasActive = activePieIdx === idx;
+  activePieIdx = wasActive ? null : idx;
+  renderPieChart(lastPieData.byCategoria, lastPieData.total);
+
+  if (!wasActive && event) {
+    const cat      = (lastPieData.sortedCats || [])[idx];
+    const breakdown = lastCatBancaData[cat] || {};
+    const color    = CAT_COLORS[cat] || DB_PALETTE[idx % DB_PALETTE.length];
+    const BANCHE   = ['Trade Republic', 'Banca Generali'];
+
+    const rows = BANCHE.map(b => {
+      const v = breakdown[b];
+      if (v == null) return '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:3px 0;">
+        <span style="font-size:12px;color:#6b7280;">${b}</span>
+        <span style="font-size:13px;font-weight:600;color:#0b1220;">${dbFormatEuro(v)}</span>
+      </div>`;
+    }).join('');
+
+    showChartPopup(`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+        <span style="font-size:12px;font-weight:700;color:#0b1220;">${esc(cat)}</span>
+      </div>
+      <div style="border-top:1px solid #f0f0f0;padding-top:8px;">${rows || '<span style="color:#94a3b8;font-size:12px;">Nessun dato per banca</span>'}</div>
+    `, event);
+  } else {
+    hideChartPopup();
+  }
+}
+
+function renderQuadGrid(data) {
+  const cells = document.querySelectorAll('#dash-quad .db-cell');
+  if (!cells.length) return;
+
+  const pat = data.patrimonio || {};
+  const bg  = data.banca_generali || {};
+  const tr  = data.trade_republic || {};
+
+  function fillCell(cell, big, label, subs) {
+    cell.innerHTML = `
+      <div class="db-cell-big">${big}</div>
+      <div class="db-cell-label">${label}</div>
+      <div class="db-cell-subs">
+        ${subs.map(s => `<div class="db-sub-item">
+            <div class="db-sub-value">${s.value}</div>
+            <div class="db-sub-label">${s.label}</div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  fillCell(cells[0], dbFormatEuro(pat.totale || 0), 'Patrimonio', [
+    { value: dbFormatEuro(pat.deposito || 0), label: 'Deposito' },
+    { value: pat.investiti != null ? dbFormatEuro(pat.investiti) : '—', label: 'Investimenti' },
+  ]);
+  fillInvCell(cells[1], data);
+  const bigBG = data.deposito_stimato_bg != null ? dbFormatEuro(data.deposito_stimato_bg) : dbFormatEuro(bg.saldo || 0);
+  const bigTR = data.deposito_stimato_tr != null ? dbFormatEuro(data.deposito_stimato_tr) : dbFormatEuro(tr.saldo || 0);
+  fillCell(cells[2], bigBG, 'Banca Generali', [
+    { value: dbFormatEuro(bg.entrate || 0), label: 'Entrate' },
+    { value: dbFormatEuro(bg.uscite  || 0), label: 'Uscite'  },
+  ]);
+  fillCell(cells[3], bigTR, 'Trade Republic', [
+    { value: dbFormatEuro(tr.entrate || 0), label: 'Entrate' },
+    { value: dbFormatEuro(tr.uscite  || 0), label: 'Uscite'  },
+  ]);
+}
+
+// ── Investment cell (top-right quad) ─────────────────────────────────────────
+
+function fillInvCell(cell, data) {
+  const valoreInv    = data.valore_investimenti != null ? parseFloat(data.valore_investimenti) : null;
+  const controvalore = data.controvalore_carico != null ? parseFloat(data.controvalore_carico) : null;
+
+  // Performance calculation
+  let perfHTML  = '<span style="color:#94a3b8;">—</span>';
+  let dotHTML   = '';
+  let perfLabel = 'Guadagno/Perdita';
+  let labelCol  = '#64748b';
+
+  if (valoreInv !== null && controvalore !== null && controvalore !== 0) {
+    const diff   = valoreInv - controvalore;
+    const pct    = diff / Math.abs(controvalore) * 100;
+    const isGain = diff >= 0;
+    const color  = isGain ? '#10b981' : '#ef4444';
+    perfLabel    = isGain ? 'Guadagno' : 'Perdita';
+    labelCol     = color;
+
+    // Arrow SVG
+    const arrow = isGain
+      ? `<svg width="9" height="9" viewBox="0 0 10 10" style="margin-left:3px;flex-shrink:0;"><polygon points="5,1 9,9 1,9" fill="${color}"/></svg>`
+      : `<svg width="9" height="9" viewBox="0 0 10 10" style="margin-left:3px;flex-shrink:0;"><polygon points="1,1 9,1 5,9" fill="${color}"/></svg>`;
+
+    // Value depending on mode
+    const perfTxt = invDisplayMode === 'pct'
+      ? `${isGain ? '+' : ''}${pct.toFixed(2).replace('.', ',')}%`
+      : dbFormatEuro(Math.abs(diff));
+
+    perfHTML = `<span style="display:inline-flex;align-items:center;color:${color};">${perfTxt}${arrow}</span>`;
+
+    // Toggle dots
+    dotHTML = `
+      <div class="inv-toggle-dots">
+        <span class="inv-dot${invDisplayMode === 'abs' ? ' inv-dot-active' : ''}" onclick="setInvMode('abs',event)" title="Valore assoluto"></span>
+        <span class="inv-dot${invDisplayMode === 'pct' ? ' inv-dot-active' : ''}" onclick="setInvMode('pct',event)" title="Percentuale"></span>
+      </div>`;
+  }
+
+  cell.innerHTML = `
+    <div class="db-cell-big">${valoreInv !== null ? dbFormatEuro(valoreInv) : '—'}</div>
+    <div class="db-cell-label">Valore Investimenti</div>
+    <div class="db-cell-subs">
+      <div class="db-sub-item">
+        <div class="db-sub-value">${controvalore !== null ? dbFormatEuro(controvalore) : '—'}</div>
+        <div class="db-sub-label">Controvalore carico</div>
+      </div>
+      <div class="db-sub-item" style="position:relative;">
+        <div class="db-sub-value">${perfHTML}</div>
+        <div class="db-sub-label" style="color:${labelCol}">${perfLabel}</div>
+        ${dotHTML}
+      </div>
+    </div>`;
+}
+
+function setInvMode(mode, event) {
+  if (event) event.stopPropagation();
+  invDisplayMode = mode;
+  const cells = document.querySelectorAll('#dash-quad .db-cell');
+  if (cells[1] && lastDashData) fillInvCell(cells[1], lastDashData);
+}
+
+// ── Trend chart helpers ───────────────────────────────────────────────────────
+
+function addMonths(ms, delta) {
+  let [y, m] = ms.split('-').map(Number);
+  m += delta;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1)  { m += 12; y--; }
+  return `${y}-${String(m).padStart(2, '0')}`;
+}
+
+function monthLabel(ms) {
+  if (!ms) return '';
+  const MN = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  return `${MN[parseInt(ms.split('-')[1]) - 1]} ${ms.split('-')[0]}`;
+}
+
+function initTrendWindow() {
+  // Default window: January → December of the current year
+  trendWindowStart = `${new Date().getFullYear()}-01`;
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+
+function renderTrendChart(series) {
+  if (series !== undefined) {
+    lastTrendSeries = series;
+    if (!trendWindowInitialized) {
+      initTrendWindow();
+      trendWindowInitialized = true;
+    }
+  }
+
+  const svgEl   = document.getElementById('dash-trend-svg');
+  const xaxis   = document.getElementById('dash-trend-xaxis');
+  const legend  = document.getElementById('dash-trend-legend');
+  const titleEl = document.getElementById('trend-col-title');
+
+  if (!trendWindowStart) return;
+
+  const MN = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+
+  // 12-month window
+  const months12 = [];
+  for (let i = 0; i < 12; i++) months12.push(addMonths(trendWindowStart, i));
+  const windowEnd = months12[11];
+
+  // Column title (end year of window)
+  if (titleEl) titleEl.textContent = `Patrimonio ${windowEnd.split('-')[0]}`;
+
+  // Arrow bounds: based on earliest/latest month with any data
+  let earliestData = null, latestData = null;
+  for (const s of lastTrendSeries) {
+    for (const m of Object.keys(s.data || {})) {
+      if (!earliestData || m < earliestData) earliestData = m;
+      if (!latestData   || m > latestData)   latestData   = m;
+    }
+  }
+  const prevDis = !earliestData || windowEnd <= earliestData;
+  const nextDis = !latestData   || trendWindowStart >= latestData;
+
+  // Build per-series point arrays (null = no data for that month)
+  const seriesWithPoints = lastTrendSeries.map(s => ({
+    ...s,
+    points: months12.map(mk => {
+      const v = (s.data || {})[mk];
+      return (v !== undefined && v !== null) ? parseFloat(v) : null;
+    }),
+  }));
+
+  // Y-axis scale
+  const allVals = seriesWithPoints.flatMap(s => s.points.filter(v => v !== null));
+  const yMax    = allVals.length ? Math.max(...allVals) * 1.12 : 1;
+
+  const W = 800, H = 310;
+  const PAD = { t: 20, r: 20, b: 8, l: 52 };
+  const iw  = W - PAD.l - PAD.r;
+  const ih  = H - PAD.t - PAD.b;
+  const xAt = i => PAD.l + (i / 11) * iw;
+  const yAt = v => PAD.t + (1 - v / yMax) * ih;
+
+  // Grid + y-axis labels
+  const gridCount = 4;
+  let grid = '';
+  for (let k = 0; k <= gridCount; k++) {
+    const v = (yMax / gridCount) * k;
+    const y = yAt(v).toFixed(1);
+    grid += `<line x1="${PAD.l}" y1="${y}" x2="${W - PAD.r}" y2="${y}" stroke="#eef0f3" stroke-width="1"/>`;
+    grid += `<text x="${PAD.l - 6}" y="${(parseFloat(y) + 4).toFixed(1)}" text-anchor="end" fill="#94a3b8" font-size="10" font-family="Inter,sans-serif">${dbFormatEuroShort(v)}</text>`;
+  }
+
+  // Lines + dots — gaps (M = move, not L = line) at null months
+  let lines = '';
+  seriesWithPoints.forEach(s => {
+    const isActive = activeTrendKey === null || activeTrendKey === s.key;
+    const opacity  = isActive ? '1' : '0.12';
+    const sw       = activeTrendKey === s.key ? '3.5' : '2.5';
+
+    let d = '', inSeg = false;
+    s.points.forEach((v, i) => {
+      if (v === null) { inSeg = false; return; }
+      const px = xAt(i).toFixed(2), py = yAt(v).toFixed(2);
+      d += inSeg ? `L ${px} ${py} ` : `M ${px} ${py} `;
+      inSeg = true;
+    });
+
+    if (d.trim()) {
+      lines += `<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round" opacity="${opacity}" style="transition:opacity 0.18s"/>`;
+    }
+    s.points.forEach((v, i) => {
+      if (v !== null) {
+        const mk = months12[i];
+        const isMonthHL   = trendActiveMonth === null || mk === trendActiveMonth;
+        const dotOpacity  = !isActive ? '0.07' : (!isMonthHL ? '0.13' : '1');
+        const dotR        = (trendActiveMonth === mk) ? '5' : '3.5';
+        lines += `<circle cx="${xAt(i).toFixed(2)}" cy="${yAt(v).toFixed(2)}" r="${dotR}" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="${dotOpacity}" style="cursor:pointer;transition:opacity 0.18s,r 0.12s" onclick="onTrendDotClick('${mk}', event)"/>`;
+      }
+    });
+  });
+
+  // Value labels for the active series — rendered last so they sit on top
+  if (activeTrendKey !== null) {
+    const activeSeries = seriesWithPoints.find(s => s.key === activeTrendKey);
+    if (activeSeries) {
+      activeSeries.points.forEach((v, i) => {
+        if (v !== null) {
+          const cx = xAt(i);
+          const cy = yAt(v);
+          // Place label above the dot; if too close to top edge place it below
+          const labelY = cy < PAD.t + 18 ? (cy + 15).toFixed(1) : (cy - 7).toFixed(1);
+          const label  = Math.round(v).toLocaleString('it-IT');
+          lines += `<text x="${cx.toFixed(2)}" y="${labelY}" text-anchor="middle" fill="#a8b8c4" font-size="11" font-family="Inter,sans-serif" font-weight="500">${label}</text>`;
+        }
+      });
+    }
+  }
+
+  svgEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:310px;display:block;" preserveAspectRatio="none">${grid}${lines}</svg>`;
+
+  // X-axis labels: nav zone (width = PAD.l = 6.5%) + months zone (flex:1, aligned to chart drawing area)
+  xaxis.innerHTML = `
+    <div class="db-trend-xaxis-nav">
+      <button class="db-trend-xaxis-btn" onclick="changeTrendWindow(-1)" ${prevDis ? 'disabled' : ''}>&#8249;</button>
+      <button class="db-trend-xaxis-btn" onclick="changeTrendWindow(1)" ${nextDis ? 'disabled' : ''}>&#8250;</button>
+    </div>
+    <div class="db-trend-xaxis-months">
+      ${months12.map(mk => `<span>${MN[parseInt(mk.split('-')[1]) - 1]}</span>`).join('')}
+    </div>`;
+
+  // Legend — scrollable, clickable
+  legend.innerHTML = seriesWithPoints.map(s => {
+    const isActive = activeTrendKey === null || activeTrendKey === s.key;
+    const opacity  = isActive ? '1' : '0.35';
+    return `<li style="cursor:pointer;opacity:${opacity};transition:opacity 0.18s" onclick="onTrendLegendClick('${s.key}', event)">
+      <span class="db-dot" style="background:${s.color}"></span>
+      <span class="db-legend-text">${s.label}</span>
+    </li>`;
+  }).join('');
+}
+
+function changeTrendWindow(delta) {
+  if (!trendWindowStart) return;
+  trendWindowStart = addMonths(trendWindowStart, delta);
+  renderTrendChart();
+}
+
+function onTrendLegendClick(key, e) {
+  if (e) e.stopPropagation();   // prevent document handler from immediately clearing
+  activeTrendKey = (activeTrendKey === key) ? null : key;
+  renderTrendChart();
+}
+
+// Click anywhere outside the legend deselects the active trend series
+document.addEventListener('click', function() {
+  if (activeTrendKey !== null) {
+    activeTrendKey = null;
+    renderTrendChart();
+  }
+});
+
+// ── Trend dot click: highlight month + popup ──────────────────────────────────
+function onTrendDotClick(monthKey, event) {
+  event.stopPropagation();
+
+  if (trendActiveMonth === monthKey) {
+    // Toggle off
+    trendActiveMonth = null;
+    hideChartPopup();
+    renderTrendChart();
+    return;
+  }
+
+  trendActiveMonth = monthKey;
+  renderTrendChart();   // re-render with dimmed dots
+
+  // Build popup content: all series values for this month
+  const MN = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const [y, m] = monthKey.split('-');
+  const mlabel = `${MN[parseInt(m) - 1]} ${y}`;
+
+  // Sort: entries with a value first (descending by value), then no-data entries
+  const seriesSorted = [...lastTrendSeries]
+    .map(s => ({ ...s, _v: (s.data || {})[monthKey] }))
+    .sort((a, b) => {
+      if (a._v != null && b._v != null) return b._v - a._v;
+      if (a._v != null) return -1;
+      if (b._v != null) return  1;
+      return 0;
+    });
+
+  let rows = '';
+  for (const s of seriesSorted) {
+    const v = s._v;
+    const txt = v != null
+      ? `<span style="font-size:12px;font-weight:600;color:#0b1220;margin-left:auto;">${dbFormatEuro(parseFloat(v))}</span>`
+      : `<span style="font-size:12px;color:#cbd5e1;margin-left:auto;">—</span>`;
+
+    rows += `<li style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0;"></span>
+      <span style="font-size:12px;color:#374151;white-space:nowrap;">${esc(s.label)}</span>
+      ${txt}
+    </li>`;
+
+    // For azioni: show individual stock breakdown below
+    if (s.key === 'azioni' && v != null && s.stocks && s.stocks.length > 0) {
+      const stocksSorted = s.stocks
+        .map(st => ({ name: st.name, sv: (st.data || {})[monthKey] }))
+        .filter(st => st.sv != null && st.sv > 0)
+        .sort((a, b) => b.sv - a.sv);
+
+      for (const st of stocksSorted) {
+        rows += `<li style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 20px;opacity:0.72;">
+          <span style="width:5px;height:5px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></span>
+          <span style="font-size:11px;color:#374151;white-space:nowrap;">${esc(st.name)}</span>
+          <span style="font-size:11px;font-weight:500;color:#374151;margin-left:auto;">${dbFormatEuro(st.sv)}</span>
+        </li>`;
+      }
+    }
+  }
+
+  showChartPopup(`
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.05em;color:#6b7280;text-transform:uppercase;margin-bottom:9px;">${mlabel}</div>
+    <ul style="list-style:none;padding:0;margin:0;max-height:240px;overflow-y:auto;">${rows}</ul>
+  `, event);
+}
+
+// ── Shared popup helpers ──────────────────────────────────────────────────────
+function showChartPopup(content, event) {
+  const popup = document.getElementById('chart-popup');
+  document.getElementById('chart-popup-inner').innerHTML = content;
+  popup.style.display = 'block';
+
+  // Measure after making visible (use rAF to let browser paint)
+  requestAnimationFrame(() => {
+    const pw = popup.offsetWidth  || 240;
+    const ph = popup.offsetHeight || 160;
+    let x = event.clientX + 14;
+    let y = event.clientY + 14;
+    if (x + pw > window.innerWidth  - 8) x = event.clientX - pw - 10;
+    if (y + ph > window.innerHeight - 8) y = event.clientY - ph - 10;
+    popup.style.left = Math.max(8, x) + 'px';
+    popup.style.top  = Math.max(8, y) + 'px';
+  });
+}
+
+function hideChartPopup() {
+  document.getElementById('chart-popup').style.display = 'none';
+}
+
+function dbFormatEuro(v) {
+  const n = parseFloat(v || 0);
+  const abs = Math.abs(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (n < 0 ? '-' : '') + '€\u202f' + abs;
+}
+
+function dbFormatEuroShort(v) {
+  const n = Math.abs(parseFloat(v || 0));
+  if (n >= 1000) return '€' + (n / 1000).toFixed(1).replace('.', ',') + 'k';
+  return '€' + Math.round(n);
+}
+
+
+// ============================================================
+// STORICO
+// ============================================================
+async function initStorico() {
+  // Load months for filter
+  const res = await fetch('/api/months');
+  const data = await res.json();
+  const sel = document.getElementById('filter-month');
+  sel.innerHTML = '<option value="">Tutti</option>' + data.months.map(m => `<option value="${m}">${m}</option>`).join('');
+  storicoPage = 1;
+
+  // Load unmatched cash movements
+  try {
+    const chk  = await fetch('/api/cash-movements/check');
+    const chkd = await chk.json();
+    cashMvUnmatched = new Set(chkd.unmatched || []);
+    renderCashMvBanner(chkd.unmatched?.length || 0);
+  } catch(e) {
+    cashMvUnmatched = new Set();
+  }
+
+  await loadStorico();
+}
+
+function renderCashMvBanner(count) {
+  const existing = document.getElementById('cash-mv-banner');
+  if (existing) existing.remove();
+  if (!count) return;
+  const card = document.querySelector('#page-storico .card');
+  if (!card) return;
+  const banner = document.createElement('div');
+  banner.id = 'cash-mv-banner';
+  banner.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:13px;color:#b91c1c;';
+  banner.innerHTML = `<span style="font-size:15px;">⚠</span> <strong>${count}</strong> cash movement senza corrispondenza — controlla le righe evidenziate in rosso.`;
+  card.insertBefore(banner, card.firstChild);
+}
+
+function updateStoricoClearBtn() {
+  const active =
+    document.getElementById('filter-month').value    ||
+    document.getElementById('filter-categoria').value ||
+    document.getElementById('filter-banca').value     ||
+    document.getElementById('filter-tipo').value;
+  const btn = document.getElementById('storico-clear-btn');
+  if (btn) btn.style.display = active ? '' : 'none';
+}
+
+function clearStoricoFilters() {
+  document.getElementById('filter-month').value    = '';
+  document.getElementById('filter-categoria').value = '';
+  document.getElementById('filter-banca').value     = '';
+  document.getElementById('filter-tipo').value      = '';
+  updateStoricoClearBtn();
+  loadStorico();
+}
+
+async function loadStorico() {
+  storicoPage = 1;
+  selectedStorico.clear();
+  updateStoricoClearBtn();
+  const params = buildStoricoParams();
+  const res = await fetch('/api/transactions?' + params);
+  const data = await res.json();
+  allStoricoRecords = data.transactions;
+  storicoTotal = data.total;
+  renderStoricoTable();
+}
+
+function buildStoricoParams() {
+  const p = new URLSearchParams();
+  const month = document.getElementById('filter-month').value;
+  const cat = document.getElementById('filter-categoria').value;
+  const banca = document.getElementById('filter-banca').value;
+  const tipo = document.getElementById('filter-tipo').value;
+  if (month) p.set('month', month);
+  if (cat) p.set('categoria', cat);
+  if (banca) p.set('banca', banca);
+  if (tipo) p.set('tipo', tipo);
+  return p.toString();
+}
+
+function renderStoricoTable() {
+  const tbody = document.getElementById('storico-tbody');
+  const empty = document.getElementById('storico-empty');
+  const countLabel = document.getElementById('storico-count-label');
+
+  const start = (storicoPage - 1) * STORICO_PAGE_SIZE;
+  const pageRecords = allStoricoRecords.slice(start, start + STORICO_PAGE_SIZE);
+
+  tbody.innerHTML = '';
+  if (allStoricoRecords.length === 0) {
+    empty.style.display = 'block';
+    countLabel.textContent = '';
+    renderStoricoPagination();
+    return;
+  }
+  empty.style.display = 'none';
+  countLabel.textContent = `${start + 1}–${Math.min(start + STORICO_PAGE_SIZE, storicoTotal)} di ${storicoTotal}`;
+
+  pageRecords.forEach((r, localIdx) => {
+    const globalIdx  = start + localIdx;
+    const tr         = document.createElement('tr');
+    const csvIdx     = r._idx;
+    const isOrphan   = r.tipo === 'cash movement' && cashMvUnmatched.has(csvIdx);
+    if (isOrphan) tr.classList.add('cash-mv-unmatched');
+    tr.innerHTML = `
+      <td style="padding:9px 8px;">
+        <input type="checkbox" data-csv-idx="${csvIdx}"
+          onchange="onStoricoCheckbox(this, ${csvIdx})"
+          ${selectedStorico.has(csvIdx) ? 'checked' : ''}>
+      </td>
+      <td>${r.data}</td>
+      <td>
+        <select style="font-size:11px;" onchange="patchTransaction(${csvIdx}, 'causale', this.value)">
+          ${buildCausaleOptionsHTML(r.causale || '')}
+        </select>
+      </td>
+      <td style="min-width:160px;">
+        <input class="desc-input" type="text" value="${esc(r.descrizione)}"
+          data-csv-idx="${csvIdx}"
+          onblur="patchTransaction(${csvIdx}, 'descrizione', this.value)">
+      </td>
+      <td class="${amountClassFromRecord(r)}">${formatAmountRecord(r)}</td>
+      <td>
+        <select class="cat-select"
+          onchange="onStoricoCatChange(this, ${csvIdx})">${buildCategoryOptionsHTML(r.categoria || '?')}</select>
+      </td>
+      <td>${esc(r.banca || '')}</td>
+      <td>
+        <select class="${tipoClass(r.tipo)}" style="font-size:11px;"
+          onchange="patchTransaction(${csvIdx},'tipo',this.value); this.className=tipoClass(this.value);">
+          ${buildTipoOptionsHTML(r.tipo || 'spesa')}
+        </select>
+      </td>
+      <td>
+        ${isOrphan ? `<span title="Cash movement senza corrispondenza" style="color:#ef4444;margin-right:5px;font-size:14px;vertical-align:middle;">⚠</span>` : ''}
+        <button class="btn btn-secondary btn-sm" onclick="deleteStoricoRow(${csvIdx})" title="Elimina">&#10005;</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  renderStoricoPagination();
+}
+
+// ── NUOVA RIGA MANUALE ────────────────────────────────────────────────────────
+
+function addNewStoricoRow() {
+  // Prevent duplicate
+  if (document.getElementById('storico-new-row')) return;
+
+  const tbody = document.getElementById('storico-tbody');
+  const today = new Date().toISOString().slice(0, 10);
+
+  const tr = document.createElement('tr');
+  tr.id = 'storico-new-row';
+  tr.className = 'storico-new-row';
+  tr.innerHTML = `
+    <td style="text-align:center;color:var(--text-muted);font-size:16px;">✎</td>
+    <td><input id="nr-data" type="date" value="${today}" style="width:120px;font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-secondary);color:var(--text-primary);"></td>
+    <td><select id="nr-causale" style="font-size:11px;">${buildCausaleOptionsHTML('')}</select></td>
+    <td style="min-width:160px;"><input id="nr-desc" type="text" placeholder="Descrizione" style="width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-secondary);color:var(--text-primary);"></td>
+    <td><input id="nr-importo" type="number" step="0.01" placeholder="0.00" style="width:80px;font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-secondary);color:var(--text-primary);text-align:right;"></td>
+    <td><select id="nr-cat" class="cat-select" style="font-size:11px;">${buildCategoryOptionsHTML('?')}</select></td>
+    <td>
+      <select id="nr-banca" style="font-size:11px;padding:3px 5px;border:1px solid var(--border);border-radius:5px;background:var(--bg-secondary);color:var(--text-primary);">
+        <option value="Trade Republic">Trade Republic</option>
+        <option value="Banca Generali">Banca Generali</option>
+        <option value="PayPal">PayPal</option>
+        <option value="Altro">Altro</option>
+      </select>
+    </td>
+    <td>
+      <select id="nr-tipo" class="tipo-select tipo-spesa" style="font-size:11px;"
+        onchange="this.className='tipo-select tipo-'+this.value.replace(/\\s+/g,'-')">
+        ${buildTipoOptionsHTML('spesa')}
+      </select>
+    </td>
+    <td style="white-space:nowrap;">
+      <button class="btn btn-primary btn-sm" onclick="confirmNewStoricoRow()" title="Conferma" style="padding:3px 8px;margin-right:4px;">&#10003;</button>
+      <button class="btn btn-secondary btn-sm" onclick="cancelNewStoricoRow()" title="Annulla" style="padding:3px 8px;">&#10005;</button>
+    </td>
+  `;
+
+  // Insert as very first row
+  tbody.insertBefore(tr, tbody.firstChild);
+
+  // Hide the empty state if visible, show table
+  document.getElementById('storico-empty').style.display = 'none';
+
+  // Focus the date field
+  document.getElementById('nr-data').focus();
+}
+
+async function confirmNewStoricoRow() {
+  const dataVal    = (document.getElementById('nr-data')?.value || '').trim();
+  const causale    = (document.getElementById('nr-causale')?.value || '').trim();
+  const descrizione= (document.getElementById('nr-desc')?.value || '').trim();
+  const importoStr = (document.getElementById('nr-importo')?.value || '').trim();
+  const categoria  = (document.getElementById('nr-cat')?.value || '?').trim();
+  const banca      = (document.getElementById('nr-banca')?.value || 'Trade Republic').trim();
+  const tipo       = (document.getElementById('nr-tipo')?.value || 'spesa').trim();
+
+  if (!dataVal) { alert('Inserisci una data.'); return; }
+  if (importoStr === '' || isNaN(parseFloat(importoStr))) { alert('Inserisci un importo valido.'); return; }
+
+  const importo = parseFloat(importoStr);
+
+  const btn = document.querySelector('#storico-new-row .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  try {
+    const res = await fetch('/api/transactions/add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: dataVal, causale, descrizione, importo, categoria, banca, tipo }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error || 'Errore durante il salvataggio.');
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#10003;'; }
+      return;
+    }
+    cancelNewStoricoRow();
+    await loadStorico();
+  } catch (e) {
+    alert('Errore di rete.');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#10003;'; }
+  }
+}
+
+function cancelNewStoricoRow() {
+  const row = document.getElementById('storico-new-row');
+  if (row) row.remove();
+}
+
+function renderStoricoPagination() {
+  const total = allStoricoRecords.length;
+  const pages = Math.ceil(total / STORICO_PAGE_SIZE);
+  const el = document.getElementById('storico-pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  let html = '';
+  if (storicoPage > 1) html += `<button class="page-btn" onclick="goStorico(${storicoPage - 1})">&#8249;</button>`;
+
+  const range = 2;
+  for (let p = 1; p <= pages; p++) {
+    if (p === 1 || p === pages || Math.abs(p - storicoPage) <= range) {
+      html += `<button class="page-btn ${p === storicoPage ? 'active' : ''}" onclick="goStorico(${p})">${p}</button>`;
+    } else if (Math.abs(p - storicoPage) === range + 1) {
+      html += `<span style="padding:0 4px;">…</span>`;
+    }
+  }
+
+  if (storicoPage < pages) html += `<button class="page-btn" onclick="goStorico(${storicoPage + 1})">&#8250;</button>`;
+  el.innerHTML = html;
+}
+
+function goStorico(p) {
+  storicoPage = p;
+  renderStoricoTable();
+  document.getElementById('page-storico').scrollTo(0, 0);
+}
+
+async function patchTransaction(csvIdx, key, value) {
+  await fetch('/api/transactions/' + csvIdx, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [key]: value }),
+  });
+  const rec = allStoricoRecords.find(r => r._idx === csvIdx);
+  if (rec) rec[key] = value;
+}
+
+function onStoricoCatChange(sel, csvIdx) {
+  if (sel.value === '__add__') {
+    const rec = allStoricoRecords.find(r => r._idx === csvIdx);
+    const prev = (rec && rec.categoria) || '?';
+    handleAddCategory(sel, prev, (name) => {
+      patchTransaction(csvIdx, 'categoria', name);
+      sel.innerHTML = buildCategoryOptionsHTML(name);
+      sel.value = name;
+    });
+  } else {
+    patchTransaction(csvIdx, 'categoria', sel.value);
+  }
+}
+
+// ============================================================
+// SELECTION & BULK ACTIONS
+// ============================================================
+function onReviewCheckbox(el, i) {
+  if (el.checked) selectedReview.add(i); else selectedReview.delete(i);
+  updateReviewBulkBar();
+}
+function onStoricoCheckbox(el, csvIdx) {
+  if (el.checked) selectedStorico.add(csvIdx); else selectedStorico.delete(csvIdx);
+  updateStoricoBulkBar();
+}
+
+function toggleSelectAllReview(el) {
+  selectedReview.clear();
+  if (el.checked) sessionTransactions.forEach((_, i) => selectedReview.add(i));
+  document.querySelectorAll('[data-review-idx]').forEach(cb => cb.checked = el.checked);
+  document.querySelectorAll('#review-tbody tr').forEach(tr => tr.classList.toggle('sel-row', el.checked));
+  updateReviewBulkBar();
+}
+function toggleSelectAllStorico(el) {
+  selectedStorico.clear();
+  const start = (storicoPage - 1) * STORICO_PAGE_SIZE;
+  const pageRecords = allStoricoRecords.slice(start, start + STORICO_PAGE_SIZE);
+  if (el.checked) pageRecords.forEach(r => selectedStorico.add(r._idx));
+  document.querySelectorAll('[data-csv-idx]').forEach(cb => { if (cb.tagName === 'INPUT') cb.checked = el.checked; });
+  document.querySelectorAll('#storico-tbody tr').forEach(tr => tr.classList.toggle('sel-row', el.checked));
+  updateStoricoBulkBar();
+}
+
+function updateReviewBulkBar() {
+  const n = selectedReview.size;
+  const bar = document.getElementById('review-bulk-bar');
+  bar.classList.toggle('visible', n > 0);
+  document.getElementById('review-sel-count').textContent = n + (n === 1 ? ' selezionata' : ' selezionate');
+  document.querySelectorAll('#review-tbody tr').forEach(tr => {
+    const cb = tr.querySelector('[data-review-idx]');
+    if (cb) tr.classList.toggle('sel-row', cb.checked);
+  });
+}
+function updateStoricoBulkBar() {
+  const n = selectedStorico.size;
+  const bar = document.getElementById('storico-bulk-bar');
+  bar.classList.toggle('visible', n > 0);
+  document.getElementById('storico-sel-count').textContent = n + (n === 1 ? ' selezionata' : ' selezionate');
+  document.querySelectorAll('#storico-tbody tr').forEach(tr => {
+    const cb = tr.querySelector('input[type=checkbox]');
+    if (cb) tr.classList.toggle('sel-row', cb.checked);
+  });
+}
+
+function deselectAllReview() {
+  selectedReview.clear();
+  document.querySelectorAll('[data-review-idx]').forEach(cb => cb.checked = false);
+  document.getElementById('review-select-all').checked = false;
+  updateReviewBulkBar();
+}
+function deselectAllStorico() {
+  selectedStorico.clear();
+  document.querySelectorAll('#storico-tbody input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('storico-select-all').checked = false;
+  updateStoricoBulkBar();
+}
+
+function deleteBulkReview() {
+  if (!selectedReview.size) return;
+  if (!confirm(`Eliminare ${selectedReview.size} transazioni dalla sessione?`)) return;
+  const sorted = [...selectedReview].sort((a, b) => b - a);
+  sorted.forEach(i => sessionTransactions.splice(i, 1));
+  selectedReview.clear();
+  renderReviewTable();
+  updateReviewBulkBar();
+}
+
+async function deleteBulkStorico() {
+  if (!selectedStorico.size) return;
+  if (!confirm(`Eliminare definitivamente ${selectedStorico.size} transazioni?`)) return;
+  const indices = [...selectedStorico];
+  await fetch('/api/transactions/delete-bulk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ indices }),
+  });
+  selectedStorico.clear();
+  await loadStorico();
+}
+
+async function deleteStoricoRow(csvIdx) {
+  if (!confirm('Eliminare questa transazione?')) return;
+  await fetch('/api/transactions/' + csvIdx, { method: 'DELETE' });
+  selectedStorico.delete(csvIdx);
+  await loadStorico();
+}
+
+function changeBancaBulkReview() {
+  if (!selectedReview.size) return;
+  const banca = document.getElementById('review-bulk-banca').value;
+  selectedReview.forEach(i => { sessionTransactions[i].banca = banca; });
+  renderReviewTable();
+  updateReviewBulkBar();
+}
+
+async function changeBancaBulkStorico() {
+  if (!selectedStorico.size) return;
+  const banca = document.getElementById('storico-bulk-banca').value;
+  const indices = [...selectedStorico];
+  await fetch('/api/transactions/update-bulk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ indices, key: 'banca', value: banca }),
+  });
+  selectedStorico.clear();
+  await loadStorico();
+}
+
+function storicoSalva() {
+  // Blur all desc inputs to flush any pending onblur patches
+  document.querySelectorAll('#storico-tbody .desc-input').forEach(inp => inp.blur());
+  const btn = document.getElementById('storico-salva-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '&#10003; Salvato';
+  btn.style.background = 'var(--success)';
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+}
+
+function exportStorico() {
+  const params = buildStoricoParams();
+  window.location.href = '/api/export?' + params;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatEuro(v) {
+  const n = parseFloat(v || 0);
+  const abs = Math.abs(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (n < 0 ? '-' : '') + '€' + abs;
+}
+
+function amountClass(tx) {
+  const n = parseFloat(tx.importo || 0);
+  if (tx.tipo === 'entrata' || n > 0) return 'amount-entrata';
+  if (tx.tipo === 'investimento') return 'amount-investimento';
+  return 'amount-spesa';
+}
+
+function amountClassFromRecord(r) {
+  const n = parseFloat(r.importo || 0);
+  if (r.tipo === 'entrata' || n > 0) return 'amount-entrata';
+  if (r.tipo === 'investimento') return 'amount-investimento';
+  return 'amount-spesa';
+}
+
+function formatAmount(tx) {
+  return formatEuro(tx.importo);
+}
+
+function formatAmountRecord(r) {
+  return formatEuro(r.importo);
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  // Start on the last fully-elapsed month (current month is still in progress)
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  currentDashMonth = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+  initCategories();
+  loadDashboard(); // open directly on dashboard
+
+  // Close chart popup when clicking anywhere outside it
+  document.addEventListener('click', (e) => {
+    const popup = document.getElementById('chart-popup');
+    if (popup && popup.style.display !== 'none') {
+      hideChartPopup();
+      // Also clear trend month highlight
+      if (trendActiveMonth !== null) {
+        trendActiveMonth = null;
+        renderTrendChart();
+      }
+    }
+  });
+
+  // Drag-and-drop for investment PDF upload
+  const invZone = document.getElementById('inv-upload-zone');
+  invZone.addEventListener('dragover',  (e) => { e.preventDefault(); invZone.classList.add('dragover'); });
+  invZone.addEventListener('dragleave', ()  => { invZone.classList.remove('dragover'); });
+  invZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    invZone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleInvFileSelect(file);
+  });
+});
+</script>
+</body>
+</html>
