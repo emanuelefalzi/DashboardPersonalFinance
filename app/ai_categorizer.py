@@ -113,15 +113,20 @@ BONIFICO IN USCITA (Trade Republic) → "Bonifico a [nome destinatario]"
   "Outgoing transfer for Giovanni Giustiniani" → "Bonifico a Giovanni Giustiniani"
   "Outgoing transfer for Bando" → "Bonifico a Bando"
 
-SAVINGS PLAN / BUY TRADE (Trade Republic, Commercio) → "Piano di risparmio [ETF name]"
+SAVINGS PLAN (Trade Republic, Commercio) → "Piano di risparmio [ETF name]" + categoria="PAC"
   "Savings plan execution IE00B4L5Y983 iShares III plc - iShares Core MSCI World UCITS ETF USD (Acc), quantity: 0.449014" → "Piano di risparmio MSCI World ETF"
   "Savings plan execution IE00B5BMR087 iShares VII plc - iShares Core S&P 500 UCITS ETF USD (Acc)" → "Piano di risparmio S&P 500 ETF"
+BUY TRADE una tantum (Trade Republic, Commercio) → "Acquisto [ETF/azione]" + categoria="Investimento"
 
 SELL TRADE (Trade Republic, Commercio) → "Vendita [ETF name]"
   "Sell trade IE00B5BMR087 iShares VII plc - iShares Core S&P 500 UCITS ETF USD (Acc)" → "Vendita S&P 500 ETF"
 
 ━━━ CATEGORIE DISPONIBILI ━━━
-Pasto, Caffè, Merendine, Alcol, Spesa, Mezzi, Viaggi, Personali, Acquisti Online, Investimento, Paghetta, Cash Movement
+Pasto, Caffè, Merendine, Alcol, Spesa, Mezzi, Viaggi, Personali, Acquisti Online, Investimento, PAC, Paghetta, Cash Movement
+
+⚠️ PAC vs INVESTIMENTO (entrambi tipo="investimento"):
+- PAC = versamento RICORRENTE del piano d'accumulo automatico → descrizione "Piano di risparmio ..." / "Savings plan execution ...". categoria → "PAC".
+- Investimento = acquisto UNA TANTUM/discrezionale, vendite, dividendi → "Buy trade", "Acquisto ...", azioni singole, "Sell trade"/"Vendita", "Cash Dividend". categoria → "Investimento".
 
 ━━━ REGOLE CATEGORIA (applica nell'ordine, la prima che corrisponde vince) ━━━
 
@@ -154,7 +159,8 @@ Cash Movement è un semplice trasferimento di denaro tra conti personali (giroco
 NON è un investimento. tipo → SEMPRE "cash movement", indipendentemente dalla direzione. Categoria → "Cash Movement".
 INVESTIMENTO è esclusivamente l'acquisto di ETF/azioni tramite Trade Republic:
 la descrizione conterrà "Piano di risparmio", "Savings plan", "Buy trade" oppure nomi di ETF (MSCI World, S&P 500, ecc.).
-Solo in quel caso tipo → "investimento" e categoria → "Investimento".
+Solo in quel caso tipo → "investimento". La categoria è "PAC" se è un piano di risparmio
+ricorrente ("Piano di risparmio"/"Savings plan execution"), altrimenti "Investimento".
 
 REGOLE GENERALI (per POS e Transazione con carta):
 - Caffetterie, Starbucks, coffee shop, bar per soli caffè/bevande → Caffè
@@ -166,8 +172,10 @@ REGOLE GENERALI (per POS e Transazione con carta):
 - Hotel, voli, booking → Viaggi
 - Amazon, Apple, Google, Netflix, YouTube, abbonamenti, app → Acquisti Online
 - Farmacia, barbiere, abbigliamento → Personali
-- Piano di risparmio ETF / Savings plan → Investimento
-- Vendita ETF (Sell trade) → entrata (non categoria fissa, metti "?")
+- Piano di risparmio ETF / Savings plan execution (ricorrente) → categoria="PAC", tipo="investimento"
+- Acquisto una tantum / Buy trade / azioni singole (non ricorrente) → categoria="Investimento", tipo="investimento"
+- Vendita ETF/azioni (Sell trade) → categoria="Investimento", tipo="investimento" (è un disinvestimento, NON un'entrata)
+- Dividendi (Cash Dividend) → categoria="Investimento", tipo="entrata" (reddito da investimento, NON un disinvestimento)
 - PayPal → Acquisti Online
 - Rata carta di credito → Acquisti Online
 - Prelievo ATM → Mezzi
@@ -175,7 +183,11 @@ REGOLE GENERALI (per POS e Transazione con carta):
 
 ━━━ TIPO ━━━
 - importo negativo o uscita generico → "spesa" (default)
-- SOLO acquisto/vendita ETF o azioni via Trade Republic (descrizione contiene: "Piano di risparmio", "Savings plan", "Buy trade", "Sell trade", nome ETF) → "investimento"
+- Acquisto E vendita di ETF/azioni via Trade Republic (descrizione contiene "Piano di risparmio", "Savings plan", "Buy trade", "Sell trade", "Vendita" o un nome di ETF/azione) → "investimento"
+  ⚠️ Anche la VENDITA è "investimento" (è un disinvestimento), NON "entrata".
+- Saveback / cashback ("Saveback cash reward") → "entrata"
+- Interessi mensili ("Interest payment") → "entrata"
+- Dividendi ("Cash Dividend") → "entrata"
 - categoria="Cash Movement" (giroconto tra conti propri, qualsiasi direzione) → "cash movement"
 - entrata/accredito/Paghetta/bonifico in entrata → "entrata"
 
@@ -215,7 +227,7 @@ def categorize_transactions(transactions):
 
         try:
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=4096,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_msg}],

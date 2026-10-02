@@ -11,6 +11,10 @@
 </head>
 <body>
 
+<!-- Mobile: hamburger + backdrop (visibili solo su schermo stretto via CSS) -->
+<button id="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
+<div id="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+
 <!-- SIDEBAR -->
 <div id="sidebar">
   <div class="sidebar-logo">
@@ -24,11 +28,23 @@
     <div class="nav-item" data-page="investimenti" onclick="switchPage('investimenti')">
       <span class="icon">&#128200;</span> Overview Patrimonio
     </div>
+    <div class="nav-item" data-page="dettaglio" onclick="switchPage('dettaglio')">
+      <span class="icon">&#128203;</span> Dettaglio Investimenti
+    </div>
+    <div class="nav-item" data-page="allocazione" onclick="switchPage('allocazione')">
+      <span class="icon">&#128737;</span> Allocazione &amp; Rischio
+    </div>
+    <div class="nav-item" data-page="patrimonio" onclick="switchPage('patrimonio')">
+      <span class="icon">&#128201;</span> Andamento Patrimonio
+    </div>
     <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
       <span class="icon">&#9783;</span> Dashboard
     </div>
     <div class="nav-item" data-page="storico" onclick="switchPage('storico')">
       <span class="icon">&#9776;</span> Storico
+    </div>
+    <div class="nav-item" data-page="rimborso" onclick="switchPage('rimborso')">
+      <span class="icon">&#128184;</span> Rimborso al volo
     </div>
   </nav>
 </div>
@@ -45,6 +61,7 @@
       <div>
         <h1 class="db-title">Dashboard</h1>
         <p class="db-sub">Panoramica mensile</p>
+        <button class="btn btn-secondary btn-sm" id="bi-open-btn" onclick="openBiPopup()" style="margin-top:8px;">&#129302; Chiedi alla tua BI</button>
       </div>
       <div class="db-month-nav">
         <button class="db-arrow" id="dash-prev-btn" onclick="changeMonth(-1)" disabled>
@@ -56,6 +73,9 @@
         </button>
       </div>
     </div>
+
+    <!-- Cross-filter chips (Power BI style) -->
+    <div id="dash-chips" class="dash-chips"></div>
 
     <!-- Main grid: pie card + quad grid -->
     <div class="db-grid">
@@ -104,6 +124,17 @@
       <p>Tutte le transazioni salvate</p>
     </div>
 
+    <!-- Pannello Rimborsi (AI) -->
+    <div class="card" id="rimborsi-card">
+      <div class="card-title">&#129534; Rimborsi — papà ti ha rimborsato</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 8px;">Scrivi cosa ti è stato rimborsato (es. "vestiti e benzina di marzo"). L'AI trova i bonifici in entrata e le spese corrispondenti; <b>tu confermi</b> prima di applicare.</p>
+      <div style="display:flex;gap:8px;align-items:flex-start;">
+        <textarea id="rimb-input" placeholder='Es. papà mi ha rimborsato i vestiti e la benzina, e il pesce di sabato' style="flex:1;height:54px;padding:9px;border:1px solid var(--border);border-radius:8px;font:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+        <button class="btn" id="rimb-suggest-btn" onclick="suggestRimborsi()">Proponi</button>
+      </div>
+      <div id="rimb-proposal"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">
         <span>Transazioni <span id="storico-count-label" style="font-weight:400;font-size:12px;color:var(--text-muted);margin-left:6px;"></span></span>
@@ -115,6 +146,12 @@
       </div>
 
       <div class="filter-row">
+        <div style="flex:1.4;min-width:160px;">
+          <label>Cerca</label>
+          <input id="filter-search" type="search" placeholder="nome, causale, categoria…"
+                 oninput="onStoricoSearchInput()" autocomplete="off"
+                 style="width:100%;padding:7px 10px;border:1px solid var(--border,#d1d5db);border-radius:8px;font-size:13px;box-sizing:border-box;" />
+        </div>
         <div>
           <label>Mese</label>
           <select id="filter-month" onchange="loadStorico()">
@@ -196,6 +233,52 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: RIMBORSO AL VOLO ========== -->
+  <div id="page-rimborso" class="page">
+    <div class="page-header">
+      <h1>Rimborso al volo</h1>
+      <p>Segna subito dal telefono una spesa da farti rimborsare. A fine mese, con l'estratto conto importato, la abbini alla transazione vera.</p>
+    </div>
+
+    <div class="card" style="max-width:560px;">
+      <div class="card-title">Nuova pre-nota rimborso</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">Importo (€) *</label>
+          <input id="rb-importo" type="number" inputmode="decimal" step="0.01" placeholder="30,00"
+                 style="width:100%;padding:12px;border:1px solid var(--border,#d1d5db);border-radius:10px;font-size:17px;box-sizing:border-box;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">Cosa / dove</label>
+          <input id="rb-descrizione" type="text" placeholder="es. benzina, cena, vestiti…"
+                 style="width:100%;padding:12px;border:1px solid var(--border,#d1d5db);border-radius:10px;font-size:15px;box-sizing:border-box;" />
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">Data</label>
+            <input id="rb-data" type="date"
+                   style="width:100%;padding:12px;border:1px solid var(--border,#d1d5db);border-radius:10px;font-size:15px;box-sizing:border-box;" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px;">Chi rimborsa / nota</label>
+            <input id="rb-nota" type="text" placeholder="es. papà"
+                   style="width:100%;padding:12px;border:1px solid var(--border,#d1d5db);border-radius:10px;font-size:15px;box-sizing:border-box;" />
+          </div>
+        </div>
+        <button class="btn" id="rb-add-btn" onclick="addRimborsoPending()" style="padding:13px;font-size:15px;">&#43; Aggiungi rimborso</button>
+        <div id="rb-msg" style="font-size:13px;min-height:18px;"></div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:560px;">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Rimborsi in attesa</span>
+        <span id="rb-count" style="font-size:12px;color:var(--text-muted);font-weight:400;"></span>
+      </div>
+      <div id="rb-list" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
   <!-- ========== PAGE: ONBOARDING ========== -->
   <div id="page-onboarding" class="page">
     <div class="db-header">
@@ -233,7 +316,7 @@
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
         <div class="upload-icon">&#128196;</div>
         <p><strong>Clicca per selezionare</strong> o trascina un file qui</p>
-        <p style="margin-top:6px; font-size:11px; color:var(--text-muted);">Supportati: PDF (Trade Republic), XLS/XLSX (Banca Generali), CSV (PayPal)</p>
+        <p style="margin-top:6px; font-size:11px; color:var(--text-muted);">Supportati: CSV o PDF (Trade Republic), XLS/XLSX (Banca Generali)</p>
         <input type="file" id="file-input" accept=".pdf,.xls,.xlsx,.csv" style="display:none" onchange="handleFileSelect(this.files[0])" />
       </div>
 
@@ -338,6 +421,34 @@
       <p>Storico mensile di investimenti e depositi bancari — tutto il patrimonio a colpo d'occhio</p>
     </div>
 
+    <!-- Posizioni attuali: costo medio (dai trade) + prezzo live → P&L, senza PDF -->
+    <div class="card" id="positions-card" style="margin-bottom:18px;">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Le tue posizioni · foto del mese</span>
+        <button class="btn btn-secondary btn-sm" id="pos-refresh" onclick="saveSnapshot()">&#128247; Salva foto del mese</button>
+      </div>
+      <div id="positions-summary" style="display:flex;flex-wrap:wrap;gap:22px;margin:6px 0 14px;"></div>
+      <div class="inv-table-wrap">
+        <table class="inv-table" id="positions-table">
+          <thead><tr>
+            <th class="inv-col-name">Titolo</th>
+            <th style="text-align:right;">Quote</th>
+            <th style="text-align:right;">Prezzo medio</th>
+            <th style="text-align:right;">Costo di carico</th>
+            <th style="text-align:right;">Prezzo foto</th>
+            <th style="text-align:right;">Valore</th>
+            <th style="text-align:right;">Guadagno/Perdita</th>
+          </tr></thead>
+          <tbody id="positions-tbody">
+            <tr><td colspan="7" class="inv-empty">Caricamento…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="positions-note" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+      <!-- Pannello P&L realizzato + avvisi (si popola alla prima vendita) -->
+      <div id="positions-pnl" style="margin-top:14px;"></div>
+    </div>
+
     <div class="card inv-card">
       <div class="card-title">
         <span>Portafoglio <span id="inv-year-label" style="font-weight:400;color:var(--text-muted);font-size:13px;margin-left:6px;"></span></span>
@@ -360,11 +471,51 @@
     </div>
   </div>
 
+  <!-- ========== PAGE: DETTAGLIO INVESTIMENTI ========== -->
+  <div id="page-dettaglio" class="page">
+    <div class="page-header"><h1>Dettaglio Investimenti</h1><p>Ogni titolo: data di sottoscrizione, costo, valore di mercato e guadagno/perdita</p></div>
+    <div class="card">
+      <div class="inv-table-wrap">
+        <table class="inv-table" id="dettaglio-table">
+          <thead><tr id="dettaglio-head"></tr></thead>
+          <tbody id="dettaglio-tbody"><tr><td class="inv-empty">Caricamento…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="dettaglio-note" style="font-size:11px;color:var(--text-muted);margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: ALLOCAZIONE & RISCHIO ========== -->
+  <div id="page-allocazione" class="page">
+    <div class="page-header"><h1>Allocazione &amp; Rischio</h1><p>Come è distribuito il patrimonio, diversificazione, volatilità e rischio</p></div>
+    <div id="alloc-content"><div class="card"><p class="inv-empty">Caricamento…</p></div></div>
+  </div>
+
+  <!-- ========== PAGE: ANDAMENTO PATRIMONIO ========== -->
+  <div id="page-patrimonio" class="page">
+    <div class="page-header"><h1>Andamento Patrimonio</h1><p>Il tuo patrimonio totale (liquidità + investimenti) nel tempo</p></div>
+    <div id="networth-content"><div class="card"><p class="inv-empty">Caricamento…</p></div></div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- ── Chart popup overlay ── -->
 <div id="chart-popup" onclick="event.stopPropagation()" style="display:none;position:fixed;z-index:9000;pointer-events:auto;">
   <div id="chart-popup-inner"></div>
+</div>
+
+<!-- ── Popup "Chiedi alla tua BI" ── -->
+<div id="bi-popup" onclick="if(event.target===this)closeBiPopup()" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,0.4);align-items:flex-start;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;max-width:580px;width:92%;margin-top:7vh;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,0.28);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <strong style="font-size:16px;">&#129302; Chiedi alla tua BI</strong>
+      <button class="btn btn-secondary btn-sm" onclick="closeBiPopup()">&#10005;</button>
+    </div>
+    <textarea id="bi-input" placeholder="Es. Quanto ho speso in ristoranti a maggio? Qual è il titolo più in perdita? Quanta liquidità ho?" style="width:100%;height:72px;padding:10px;border:1px solid var(--border);border-radius:8px;font:inherit;resize:vertical;box-sizing:border-box;" onkeydown="if(event.metaKey&&event.key==='Enter')sendBiQuestion()"></textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button class="btn" onclick="sendBiQuestion()">Chiedi &#8594;</button></div>
+    <div id="bi-answer" style="margin-top:14px;font-size:14px;line-height:1.55;"></div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:12px;">Risponde solo dai tuoi dati. Sola lettura — non modifica nulla.</div>
+  </div>
 </div>
 
 <script>
@@ -388,6 +539,8 @@ let trendWindowInitialized = false;
 let trendActiveMonth = null;      // "YYYY-MM" clicked on trend chart
 let lastCatBancaData = {};        // { cat: { banca: value } } from dashboard
 let lastDashData     = null;      // last dashboard API response (for re-render on toggle)
+let lastAllocData    = null;      // last /api/allocation response (for drill popups)
+let lastNetworthData = null;      // last /api/networth response (for drill popups)
 let invDisplayMode   = 'abs';     // 'abs' | 'pct' — investment cell toggle
 let storicoPage = 1;
 const STORICO_PAGE_SIZE = 50;
@@ -514,16 +667,278 @@ function refreshAllCategorySelects() {
 // ============================================================
 // NAVIGATION
 // ============================================================
-function switchPage(name) {
+function switchPage(name, filter) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   document.querySelector(`[data-page="${name}"]`).classList.add('active');
 
   if (name === 'dashboard')    loadDashboard();
-  if (name === 'storico')      initStorico();
+  if (name === 'storico')      initStorico().then(() => { if (filter) applyStoricoFilter(filter); });
   if (name === 'onboarding')   loadOnboarding();
   if (name === 'investimenti') loadInvestimenti();
+  if (name === 'dettaglio')    loadDettaglio();
+  if (name === 'allocazione')  loadAllocazione();
+  if (name === 'patrimonio')   loadNetworth();
+  if (name === 'rimborso')     loadRimborsiPending();
+  toggleSidebar(false);   // chiudi il drawer mobile dopo la navigazione
+}
+
+// ── Rimborso al volo (pre-note) ───────────────────────────────────────────────
+async function addRimborsoPending() {
+  const imp = document.getElementById('rb-importo').value;
+  const msg = document.getElementById('rb-msg');
+  const btn = document.getElementById('rb-add-btn');
+  if (!imp || isNaN(parseFloat(imp))) { msg.innerHTML = '<span style="color:#ef4444;">Inserisci un importo.</span>'; return; }
+  const body = {
+    importo: parseFloat(imp),
+    descrizione: document.getElementById('rb-descrizione').value.trim(),
+    data: document.getElementById('rb-data').value || undefined,
+    nota: document.getElementById('rb-nota').value.trim(),
+  };
+  btn.disabled = true;
+  try {
+    const r = await (await fetch('/api/rimborsi-pending', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    if (r.error) { msg.innerHTML = '<span style="color:#ef4444;">'+esc(r.error)+'</span>'; }
+    else {
+      msg.innerHTML = '<span style="color:#10b981;">✓ Aggiunto.</span>';
+      document.getElementById('rb-importo').value = '';
+      document.getElementById('rb-descrizione').value = '';
+      document.getElementById('rb-nota').value = '';
+      loadRimborsiPending();
+      setTimeout(()=>{ msg.innerHTML=''; }, 2000);
+    }
+  } catch(e) { msg.innerHTML = '<span style="color:#ef4444;">Errore di connessione.</span>'; }
+  btn.disabled = false;
+}
+
+async function loadRimborsiPending() {
+  // default data = oggi
+  const dEl = document.getElementById('rb-data');
+  if (dEl && !dEl.value) dEl.value = new Date().toISOString().slice(0,10);
+  const list = document.getElementById('rb-list');
+  try {
+    const d = await (await fetch('/api/rimborsi-pending?suggest=1')).json();
+    renderRimborsiPending(d.items || []);
+  } catch(e) { if (list) list.innerHTML = '<p class="inv-empty">Errore nel caricamento.</p>'; }
+}
+
+function renderRimborsiPending(items) {
+  const list = document.getElementById('rb-list');
+  const count = document.getElementById('rb-count');
+  const pending = items.filter(x => !x.matched);
+  if (count) count.textContent = items.length ? `${pending.length} da abbinare · ${items.length} totali` : '';
+  if (!items.length) { list.innerHTML = '<p class="inv-empty" style="color:var(--text-muted);font-size:13px;">Nessun rimborso annotato.</p>'; return; }
+  list.innerHTML = [...items].sort((a,b)=>String(b.data).localeCompare(String(a.data))).map(it => {
+    const cand = (it.candidates || []);
+    const candHtml = (!it.matched && cand.length)
+      ? `<div style="margin-top:6px;font-size:11px;color:var(--text-muted);">Possibile match: ${cand.slice(0,2).map(c=>esc((c.descrizione||'').slice(0,28))+' ('+formatEuro(c.importo)+')').join(' · ')}</div>`
+      : '';
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9;${it.matched?'opacity:.55;':''}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;">${formatEuro(it.importo)} ${it.descrizione?'· '+esc(it.descrizione):''}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${esc(it.data||'')}${it.nota?' · '+esc(it.nota):''}${it.matched?' · ✓ abbinato':''}</div>
+        ${candHtml}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleRimborsoMatched('${it.id}')" title="Segna come abbinato/da abbinare">${it.matched?'↺':'✓'}</button>
+      <button class="btn btn-secondary btn-sm" onclick="deleteRimborsoPending('${it.id}')" title="Elimina">&#10005;</button>
+    </div>`;
+  }).join('');
+}
+
+async function toggleRimborsoMatched(id) {
+  try { await fetch('/api/rimborsi-pending/'+id+'/toggle', {method:'POST'}); loadRimborsiPending(); } catch(e) {}
+}
+async function deleteRimborsoPending(id) {
+  if (!confirm('Eliminare questa pre-nota?')) return;
+  try { await fetch('/api/rimborsi-pending/'+id, {method:'DELETE'}); loadRimborsiPending(); } catch(e) {}
+}
+
+// Drawer mobile: apri/chiudi la sidebar (force=true/false, o toggle se omesso)
+function toggleSidebar(force) {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  if (!sb) return;
+  const open = (force === undefined) ? !sb.classList.contains('open') : !!force;
+  sb.classList.toggle('open', open);
+  if (bd) bd.classList.toggle('show', open);
+}
+
+// Applica un filtro allo Storico via deep-link / drill-down (imposta i select + ricarica)
+function applyStoricoFilter(filter) {
+  const setSel = (id, val) => {
+    if (val == null || val === '') return;
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    if (![...sel.options].some(o => o.value === val)) sel.add(new Option(val, val));
+    sel.value = val;
+  };
+  setSel('filter-month', filter.month);
+  setSel('filter-categoria', filter.categoria);
+  setSel('filter-banca', filter.banca);
+  setSel('filter-tipo', filter.tipo);
+  updateStoricoClearBtn();
+  loadStorico();
+}
+
+// ============================================================
+// v2.2 — Dettaglio Investimenti / Allocazione&Rischio / Andamento / BI
+// ============================================================
+let _detRows = [], _detSort = { key: 'value', dir: -1 };
+async function loadDettaglio() {
+  try { const d = await (await fetch('/api/investments/live')).json(); _detRows = d.positions || []; renderDettaglio(); }
+  catch (e) { document.getElementById('dettaglio-tbody').innerHTML = '<tr><td class="inv-empty" colspan="9">Errore</td></tr>'; }
+}
+function detSort(k) { _detSort.dir = (_detSort.key === k ? -_detSort.dir : -1); _detSort.key = k; renderDettaglio(); }
+function renderDettaglio() {
+  const cols = [['name','Titolo'],['isin','ISIN'],['data_sottoscrizione','Sottoscrizione'],['shares','Quote'],
+                ['avg_cost','Prezzo medio'],['cost_basis','Carico'],['price_eur','Ultimo prezzo'],['value','Valore'],['unrealized','Guadagno/Perdita']];
+  document.getElementById('dettaglio-head').innerHTML = cols.map(([k,l],i)=>
+    `<th style="cursor:pointer;${i>2?'text-align:right;':''}" onclick="detSort('${k}')">${l}${_detSort.key===k?(_detSort.dir<0?' ▼':' ▲'):''}</th>`).join('');
+  const rows = [..._detRows].sort((a,b)=>{ const k=_detSort.key, va=a[k], vb=b[k];
+    if (typeof va==='string'||typeof vb==='string') return String(va||'').localeCompare(String(vb||''))*_detSort.dir;
+    return ((va??0)-(vb??0))*_detSort.dir; });
+  const tb = document.getElementById('dettaglio-tbody');
+  if (!rows.length) { tb.innerHTML='<tr><td class="inv-empty" colspan="9">Nessuna posizione.</td></tr>'; return; }
+  tb.innerHTML = rows.map(p=>`<tr style="cursor:pointer" onclick="onDetRowClick('${esc(p.isin||'')}', event)">
+    <td class="inv-col-name">${esc(p.name)}</td>
+    <td style="font-size:11px;color:var(--text-muted)">${p.isin||''}</td>
+    <td>${p.data_sottoscrizione||'—'}</td>
+    <td style="text-align:right">${Number(p.shares).toLocaleString('it-IT',{maximumFractionDigits:4})}</td>
+    <td style="text-align:right">${formatEuro(p.avg_cost)}</td>
+    <td style="text-align:right">${formatEuro(p.cost_basis)}</td>
+    <td style="text-align:right">${p.price_eur!=null?formatEuro(p.price_eur):'—'}</td>
+    <td style="text-align:right">${p.value!=null?formatEuro(p.value):'—'}</td>
+    <td style="text-align:right">${p.unrealized!=null?pnlHtml(p.unrealized,p.unrealized_pct):'—'}</td></tr>`).join('');
+  document.getElementById('dettaglio-note').textContent = 'Valori alla foto mensile più recente. Clicca una riga per il dettaglio, un’intestazione per ordinare.';
+}
+
+async function loadAllocazione() {
+  try { renderAllocazione(await (await fetch('/api/allocation')).json()); }
+  catch (e) { document.getElementById('alloc-content').innerHTML='<div class="card"><p class="inv-empty">Errore</p></div>'; }
+}
+function _miniPie(slices, size) {
+  const tot = slices.reduce((s,x)=>s+x.value,0)||1; let a=-Math.PI/2; const r=size/2-4, c=size/2; let paths='';
+  slices.forEach(s=>{ const ang=s.value/tot*2*Math.PI, e=a+ang, large=ang>Math.PI?1:0;
+    const x1=c+r*Math.cos(a), y1=c+r*Math.sin(a), x2=c+r*Math.cos(e), y2=c+r*Math.sin(e);
+    paths+=`<path d="M ${c} ${c} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${s.color}" stroke="#fff" stroke-width="2"/>`; a=e; });
+  return `<svg viewBox="0 0 ${size} ${size}" style="width:${size}px;height:${size}px">${paths}<circle cx="${c}" cy="${c}" r="${(r*0.56).toFixed(1)}" fill="#fff"/></svg>`;
+}
+function renderAllocazione(d) {
+  lastAllocData = d;
+  const pie=d.allocation.pie, cls=d.allocation.classes, div=d.diversification, vol=d.volatility, risk=d.risk_buckets;
+  const rc={'Basso':'#10b981','Medio-basso':'#84cc16','Medio-alto':'#f59e0b','Alto':'#ef4444'};
+  const legend=pie.map(s=>`<div onclick="onAllocClassClick('${esc(s.label)}', event)" style="cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid #f3f4f6"><span><span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${s.color};margin-right:7px"></span>${s.label}</span><span><b>${formatEuro(s.value)}</b> · ${cls[s.label].pct}%</span></div>`).join('');
+  const bars=risk.map(b=>`<div onclick="onAllocRiskClick('${esc(b.level)}', event)" style="cursor:pointer;margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span><b>${b.level}</b></span><span>${formatEuro(b.value)} · ${b.pct}%</span></div><div style="background:#eef0f3;border-radius:6px;height:14px;overflow:hidden"><div style="width:${b.pct}%;height:100%;background:${rc[b.level]}"></div></div>${b.holdings.length?`<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${b.holdings.map(esc).join(', ')}</div>`:''}</div>`).join('');
+  const vr=vol.per_isin.map(v=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span>${esc(v.name)}</span><span>${v.vol!=null?v.vol+'%':'—'}</span></div>`).join('');
+  document.getElementById('alloc-content').innerHTML=`
+   <div class="card"><div class="card-title">Allocazione · patrimonio ${formatEuro(d.patrimonio)}</div>
+     <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap"><div>${_miniPie(pie,180)}</div><div style="flex:1;min-width:240px">${legend}</div></div></div>
+   <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:16px">
+     <div class="card" style="flex:1;min-width:240px;margin:0"><div class="card-title">Diversificazione</div>
+       <div style="font-size:30px;font-weight:700">${div.effective_n??'—'}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> titoli effettivi</span></div>
+       <div style="color:var(--text-muted);font-size:13px;margin-top:4px">Indice HHI ${div.hhi??'—'} — <b>${div.band}</b></div></div>
+     <div class="card" style="flex:1;min-width:240px;margin:0"><div class="card-title">Volatilità (annua)</div>
+       <div style="font-size:30px;font-weight:700">${vol.portfolio!=null?vol.portfolio+'%':'—'}</div>
+       <div style="margin-top:8px">${vr}</div>
+       <div style="font-size:10px;color:var(--text-muted);margin-top:6px">${vol.note}</div></div>
+   </div>
+   <div class="card" style="margin-top:16px"><div class="card-title">Rischio per livello</div>${bars}
+     <div style="font-size:10px;color:var(--text-muted);margin-top:6px">${d.risk_note}</div></div>`;
+}
+
+async function loadNetworth() {
+  try { renderNetworth(await (await fetch('/api/networth')).json()); }
+  catch (e) { document.getElementById('networth-content').innerHTML='<div class="card"><p class="inv-empty">Errore</p></div>'; }
+}
+function _miniLine(series, w, h) {
+  if (!series.length) return '<p class="inv-empty">Nessun dato</p>';
+  const vals=series.map(s=>s.totale), min=Math.min(...vals)*0.97, max=Math.max(...vals)*1.03, span=(max-min)||1, pad=34, iw=w-pad*2, ih=h-pad*2;
+  const pts=series.map((s,i)=>[pad+(series.length<2?iw/2:i/(series.length-1)*iw), pad+ih-(s.totale-min)/span*ih]);
+  const line=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const area=`M ${pts[0][0].toFixed(1)} ${(pad+ih).toFixed(1)} ${pts.map(p=>'L'+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')} L ${pts[pts.length-1][0].toFixed(1)} ${(pad+ih).toFixed(1)} Z`;
+  const dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="11" fill="transparent" style="cursor:pointer" onclick="onNetworthDotClick('${series[i].month}', event)"/><circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#6c63ff" style="pointer-events:none"/><text x="${p[0].toFixed(1)}" y="${(p[1]-9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#475569" style="pointer-events:none">${Math.round(series[i].totale).toLocaleString('it-IT')}</text>`).join('');
+  const lab=series.map((s,i)=>`<text x="${pts[i][0].toFixed(1)}" y="${h-10}" text-anchor="middle" font-size="9" fill="#94a3b8">${s.month.slice(5)}/${s.month.slice(2,4)}</text>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto"><path d="${area}" fill="#6c63ff" opacity="0.08"/><path d="${line}" fill="none" stroke="#6c63ff" stroke-width="2.5"/>${dots}${lab}</svg>`;
+}
+function renderNetworth(d) {
+  lastNetworthData = d;
+  const h=d.headline||{}, up=(h.aumento_assoluto||0)>=0, col=up?'#10b981':'#ef4444';
+  const cell=(v,l)=>`<div class="db-cell"><div class="db-cell-big">${v}</div><div class="db-cell-label">${l}</div></div>`;
+  document.getElementById('networth-content').innerHTML=`
+   <div class="card"><div class="db-quad" style="margin-bottom:0">
+     ${cell(dbFormatEuro(h.valore_attuale||0),'Patrimonio attuale')}
+     ${cell(dbFormatEuro(h.valore_iniziale||0),'Iniziale ('+(h.mese_iniziale||'—')+')')}
+     ${cell(`<span style="color:${col}">${up?'+':''}${dbFormatEuro(h.aumento_assoluto||0)}</span>`,'Variazione assoluta')}
+     ${cell(`<span style="color:${col}">${up?'+':''}${(h.variazione_pct||0).toFixed(2).replace('.',',')}%</span>`,'Variazione %')}
+   </div></div>
+   <div class="card" style="margin-top:16px"><div class="card-title">Patrimonio totale nel tempo</div>${_miniLine(d.series||[],700,260)}
+     <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Liquidità + investimenti per mese. La "variazione" include anche i versamenti (non è solo rendimento di mercato).</div></div>`;
+}
+
+// ── BI popup ──
+function openBiPopup() { document.getElementById('bi-popup').style.display='flex'; setTimeout(()=>document.getElementById('bi-input').focus(),50); }
+function closeBiPopup() { document.getElementById('bi-popup').style.display='none'; }
+async function sendBiQuestion() {
+  const q=document.getElementById('bi-input').value.trim(); if(!q) return;
+  const ans=document.getElementById('bi-answer'); ans.innerHTML='<span style="color:var(--text-muted)">Sto pensando…</span>';
+  try {
+    const r=await (await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})})).json();
+    ans.innerHTML = r.answer ? esc(r.answer).replace(/\n/g,'<br>') : ('<span style="color:#ef4444">'+esc(r.error||'Errore')+'</span>');
+  } catch(e) { ans.innerHTML='<span style="color:#ef4444">Errore di connessione</span>'; }
+}
+
+// ── Rimborsi (AI: proponi → conferma → applica) ──
+async function suggestRimborsi() {
+  const text=document.getElementById('rimb-input').value.trim(); if(!text) return;
+  const box=document.getElementById('rimb-proposal'), btn=document.getElementById('rimb-suggest-btn');
+  btn.disabled=true; box.innerHTML='<p style="color:var(--text-muted);font-size:13px">L’AI sta cercando le corrispondenze…</p>';
+  try {
+    const d=await (await fetch('/api/reimbursements/suggest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})})).json();
+    if(d.error){ box.innerHTML='<p style="color:#ef4444;font-size:13px">'+esc(d.error)+'</p>'; btn.disabled=false; return; }
+    const row=(r,kind)=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px"><input type="checkbox" data-kind="${kind}" data-idx="${r._idx}" checked><span style="flex:1">${r.data} · ${esc(r.descrizione)}</span><b>${formatEuro(r.importo)}</b></label>`;
+    const inc=d.incoming.map(r=>row(r,'inc')).join('')||'<i style="font-size:12px;color:var(--text-muted)">nessun bonifico in entrata</i>';
+    const exp=d.expenses.map(r=>row(r,'exp')).join('')||'<i style="font-size:12px;color:var(--text-muted)">nessuna spesa proposta</i>';
+    const diff=Math.abs((d.tot_incoming||0)-(d.tot_expenses||0));
+    box.innerHTML=`
+      ${d.nota?`<p style="font-size:12px;color:var(--text-muted);margin:10px 0 4px">${esc(d.nota)}</p>`:''}
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px">
+        <div style="flex:1;min-width:260px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">Entrate → "Rimborso" (tot ${formatEuro(d.tot_incoming)})</div>${inc}</div>
+        <div style="flex:1;min-width:260px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">Spese → "Rimborsata" (tot ${formatEuro(d.tot_expenses)})</div>${exp}</div>
+      </div>
+      <div style="font-size:12px;margin-top:8px;color:${diff<5?'#10b981':'#f59e0b'}">Differenza entrate/spese: ${formatEuro(diff)} ${diff<5?'✓ quadra':'⚠ controlla'}</div>
+      <div style="margin-top:10px"><button class="btn" onclick="applyRimborsi()">Applica selezionati</button></div>`;
+  } catch(e) { box.innerHTML='<p style="color:#ef4444;font-size:13px">Errore di connessione</p>'; }
+  btn.disabled=false;
+}
+async function applyRimborsi() {
+  const checks=[...document.querySelectorAll('#rimb-proposal input[type=checkbox]:checked')];
+  const inc=checks.filter(c=>c.dataset.kind==='inc').map(c=>+c.dataset.idx);
+  const exp=checks.filter(c=>c.dataset.kind==='exp').map(c=>+c.dataset.idx);
+  if(!inc.length && !exp.length){ alert('Seleziona almeno una riga'); return; }
+  const upd=(indices,value)=> indices.length ? fetch('/api/transactions/update-bulk',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({indices,key:'categoria',value})}) : Promise.resolve();
+  await upd(inc,'Rimborso'); await upd(exp,'Rimborsata');
+  document.getElementById('rimb-proposal').innerHTML='<p style="color:#10b981;font-size:13px">✓ Applicato: '+inc.length+' entrate → Rimborso, '+exp.length+' spese → Rimborsata.</p>';
+  document.getElementById('rimb-input').value='';
+  if(typeof loadStorico==='function') loadStorico();
+}
+
+// ── Modalità documentazione: cerchi numerati sui box (per il PDF delle formule) ──
+const DOC_BOXES = {
+  dashboard: [['#dash-pie',1],['#dash-quad .db-cell:nth-child(1)',2],['#dash-quad .db-cell:nth-child(2)',3],['#dash-quad .db-cell:nth-child(3)',4],['#dash-quad .db-cell:nth-child(4)',5],['#bi-open-btn',6]],
+  dettaglio: [['#dettaglio-table',1]],
+  allocazione: [['#alloc-content > div:nth-child(1)',1],['#alloc-content > div:nth-child(2) > div:nth-child(1)',2],['#alloc-content > div:nth-child(2) > div:nth-child(2)',3],['#alloc-content > div:nth-child(3)',4]],
+  patrimonio: [['#networth-content .db-cell:nth-child(1)',1],['#networth-content .db-cell:nth-child(2)',2],['#networth-content .db-cell:nth-child(3)',3],['#networth-content .db-cell:nth-child(4)',4],['#networth-content svg',5]],
+};
+function annotateForDoc(page) {
+  document.querySelectorAll('.doc-badge').forEach(e=>e.remove());
+  (DOC_BOXES[page]||[]).forEach(([sel,n])=>{
+    const el=document.querySelector(sel); if(!el) return;
+    const r=el.getBoundingClientRect();
+    const b=document.createElement('div'); b.className='doc-badge'; b.textContent=n;
+    b.style.cssText=`position:absolute;left:${window.scrollX+r.left-13}px;top:${window.scrollY+r.top-13}px;width:26px;height:26px;border-radius:50%;background:#e11d48;color:#fff;font:700 14px sans-serif;display:flex;align-items:center;justify-content:center;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,.35);border:2px solid #fff;`;
+    document.body.appendChild(b);
+  });
 }
 
 // ============================================================
@@ -594,6 +1009,7 @@ async function loadInvestimenti() {
     invData = { entities: [], deposits: {} };
   }
   renderInvTable();
+  loadPositions();
 }
 
 function renderInvTable() {
@@ -704,6 +1120,117 @@ function renderInvTable() {
 function invFmtEuro(v) {
   const n = Math.round(parseFloat(v || 0));
   return '€\u202f' + n.toLocaleString('it-IT');
+}
+
+// ── Posizioni live: costo medio (dai trade) + prezzo di mercato → P&L ──
+async function loadPositions(force) {
+  const tbody = document.getElementById('positions-tbody');
+  const btn   = document.getElementById('pos-refresh');
+  if (btn) btn.disabled = true;
+  if (force && tbody) tbody.innerHTML = '<tr><td colspan="7" class="inv-empty">Aggiornamento prezzi…</td></tr>';
+  try {
+    const r = await fetch('/api/investments/live' + (force ? '?force=1' : ''));
+    renderPositions(await r.json());
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="inv-empty">Errore nel caricamento</td></tr>';
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function saveSnapshot() {
+  const btn = document.getElementById('pos-refresh');
+  const old = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio…'; }
+  try {
+    await fetch('/api/investments/snapshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  } catch (e) {}
+  if (btn) { btn.disabled = false; btn.innerHTML = old || '&#128247; Salva foto del mese'; }
+  loadPositions();
+}
+
+function pnlHtml(v, pct) {
+  if (v == null) return '<span style="color:var(--text-muted)">—</span>';
+  const up = v >= 0, c = up ? '#10b981' : '#ef4444', sign = up ? '+' : '-';
+  const pctTxt = pct == null ? '' : ` (${up ? '+' : ''}${pct.toFixed(2).replace('.', ',')}%)`;
+  return `<span style="color:${c};font-weight:600;">${sign}${formatEuro(Math.abs(v))}${pctTxt}</span>`;
+}
+
+function renderPositions(d) {
+  const tbody   = document.getElementById('positions-tbody');
+  const summary = document.getElementById('positions-summary');
+  const note    = document.getElementById('positions-note');
+  const positions = d.positions || [];
+  if (!positions.length) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="inv-empty">Nessuna posizione aperta. Carica un CSV di Trade Republic con i tuoi trade.</td></tr>';
+    if (summary) summary.innerHTML = '';
+    if (note) note.textContent = '';
+    return;
+  }
+  if (tbody) tbody.innerHTML = positions.map(p => {
+    const dot = '';
+    return `<tr>
+      <td class="inv-col-name">${esc(p.name)}</td>
+      <td style="text-align:right;">${Number(p.shares).toLocaleString('it-IT', {maximumFractionDigits: 4})}</td>
+      <td style="text-align:right;">${formatEuro(p.avg_cost)}</td>
+      <td style="text-align:right;">${formatEuro(p.cost_basis)}</td>
+      <td style="text-align:right;">${p.price_eur != null ? formatEuro(p.price_eur) + dot : '—'}</td>
+      <td style="text-align:right;">${p.value != null ? formatEuro(p.value) : '—'}</td>
+      <td style="text-align:right;">${pnlHtml(p.unrealized, p.unrealized_pct)}</td>
+    </tr>`;
+  }).join('');
+  const t = d.totals || {};
+  if (summary) {
+    const item = (val, lbl) => `<div style="min-width:120px;"><div style="font-size:19px;font-weight:700;">${val}</div><div style="font-size:11px;color:var(--text-muted);">${lbl}</div></div>`;
+    summary.innerHTML =
+      item(formatEuro(t.value), 'Valore di mercato') +
+      item(formatEuro(t.cost_basis), 'Costo di carico') +
+      item(pnlHtml(t.unrealized, t.unrealized_pct), 'Non realizzato') +
+      (t.realized_total ? item(pnlHtml(t.realized_total, null), 'Realizzato (vendite)') : '');
+  }
+  if (note) {
+    const m = d.snapshot_month;
+    let label = m;
+    if (m) { const mn=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']; const [yy,mm]=m.split('-'); label = mn[parseInt(mm)-1]+' '+yy; }
+    note.textContent = m
+      ? `Valori alla foto di ${label} (fissi) · premi "Salva foto del mese" per aggiornare`
+      : `Nessuna foto ancora · premi "Salva foto del mese"`;
+  }
+  renderRealizedPnl(d);
+}
+
+// Pannello P&L realizzato (vendite) + avvisi del registro. Vuoto finché non vendi.
+function renderRealizedPnl(d) {
+  const el = document.getElementById('positions-pnl');
+  if (!el) return;
+  const sales = (d.sales || []);
+  const warnings = (d.warnings || []);
+  if (!sales.length && !warnings.length) { el.innerHTML = ''; return; }
+
+  let html = '';
+  if (sales.length) {
+    const tot = (d.totals || {}).realized_total;
+    const rows = [...sales].sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(s => `
+      <tr>
+        <td>${esc(s.date || '')}</td>
+        <td class="inv-col-name">${esc(s.name || s.isin || '')}</td>
+        <td style="text-align:right;">${Number(s.shares_sold||0).toLocaleString('it-IT',{maximumFractionDigits:4})}</td>
+        <td style="text-align:right;">${s.proceeds!=null?formatEuro(s.proceeds):'—'}</td>
+        <td style="text-align:right;">${s.cost_removed!=null?formatEuro(s.cost_removed):'—'}</td>
+        <td style="text-align:right;">${s.orphan ? '<span style="color:#f59e0b;">vendita orfana</span>' : pnlHtml(s.realized, s.realized_pct)}</td>
+      </tr>`).join('');
+    html += `
+      <div style="font-weight:700;font-size:13px;margin:6px 0 8px;">Vendite & guadagno realizzato${tot!=null?` · totale ${pnlHtml(tot,null)}`:''}</div>
+      <div class="inv-table-wrap"><table class="inv-table">
+        <thead><tr><th>Data</th><th class="inv-col-name">Titolo</th><th style="text-align:right;">Quote</th><th style="text-align:right;">Ricavo</th><th style="text-align:right;">Costo</th><th style="text-align:right;">Realizzato</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+  }
+  if (warnings.length) {
+    html += `<div style="margin-top:10px;">` + warnings.map(w =>
+      `<div style="display:flex;gap:8px;align-items:flex-start;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#92400e;">
+         <span>⚠️</span><span>${esc(w)}</span></div>`).join('') + `</div>`;
+  }
+  el.innerHTML = html;
 }
 
 function invScroll(dir) {
@@ -1028,22 +1555,66 @@ const DB_PALETTE = [
   '#f43f5e','#78350f','#b45309',
 ];
 
+// ── Cross-filter dashboard (categoria / banca) ──
+let dashFilter = { categoria: null, banca: null };
+function setDashFilter(kind, value) {
+  dashFilter[kind] = (dashFilter[kind] === value) ? null : value;
+  loadDashboard();
+}
+function clearDashFilter(kind) { dashFilter[kind] = null; loadDashboard(); }
+function renderDashChips() {
+  const el = document.getElementById('dash-chips'); if (!el) return;
+  const chips = [];
+  if (dashFilter.categoria) chips.push(`<span class="dash-chip">Categoria: ${esc(dashFilter.categoria)} <span class="dash-chip-x" onclick="clearDashFilter('categoria')">&times;</span></span>`);
+  if (dashFilter.banca)     chips.push(`<span class="dash-chip">Banca: ${esc(dashFilter.banca)} <span class="dash-chip-x" onclick="clearDashFilter('banca')">&times;</span></span>`);
+  el.innerHTML = chips.join('');
+  el.style.display = chips.length ? 'flex' : 'none';
+}
+// Link "vedi … →" dentro i popup. stopPropagation obbligatorio: altrimenti il click globale chiude il popup prima di navigare.
+function popupLink(label, page, filter) {
+  const fjson = JSON.stringify(filter || {}).replace(/'/g, '&#39;');
+  return `<div style="margin-top:10px;border-top:1px solid #f0f0f0;padding-top:8px;">
+    <a href="#" onclick='event.preventDefault();event.stopPropagation();hideChartPopup();switchPage("${page}", ${fjson});return false;'
+       style="font-size:12px;color:#6c63ff;font-weight:600;text-decoration:none;">${label} &rarr;</a></div>`;
+}
+function onBankCellClick(banca, event) {
+  if (event) event.stopPropagation();
+  const wasActive = dashFilter.banca === banca;
+  const acc = banca === 'Banca Generali' ? ((lastDashData && lastDashData.banca_generali) || {})
+                                          : ((lastDashData && lastDashData.trade_republic) || {});
+  if (!wasActive && event) {
+    const row = (l, v) => `<div style="display:flex;justify-content:space-between;gap:18px;padding:2px 0;font-size:12px"><span style="color:#6b7280">${l}</span><b style="color:#0b1220">${dbFormatEuro(v || 0)}</b></div>`;
+    showChartPopup(`<div style="font-size:12px;font-weight:700;color:#0b1220;margin-bottom:8px;">${esc(banca)}</div>
+      ${row('Entrate', acc.entrate)}${row('Uscite', acc.uscite)}${row('Saldo mese', acc.saldo)}
+      ${popupLink('vedi transazioni', 'storico', {banca: banca, month: currentDashMonth})}`, event);
+  } else { hideChartPopup(); }
+  setDashFilter('banca', banca);
+}
+
 function changeMonth(delta) {
   if (!availableMonths.length) return;
   const next = currentDashMonthIdx + delta;
   if (next < 0 || next >= availableMonths.length) return;
   currentDashMonthIdx = next;
   currentDashMonth = availableMonths[currentDashMonthIdx];
+  dashFilter = { categoria: null, banca: null };   // cambio mese azzera i filtri attivi
+  activePieIdx = null;
+  hideChartPopup();
   loadDashboard();
 }
 
 async function loadDashboard() {
-  // Fetch dashboard data and trend series in parallel
-  const [dashRes, trendRes] = await Promise.all([
-    fetch('/api/dashboard?month=' + currentDashMonth),
+  // Fetch dashboard data, trend series and the monthly investment photo in parallel
+  const [dashRes, trendRes, snapRes] = await Promise.all([
+    fetch('/api/dashboard?month=' + currentDashMonth
+          + (dashFilter.banca ? '&banca=' + encodeURIComponent(dashFilter.banca) : '')
+          + (dashFilter.categoria ? '&categoria=' + encodeURIComponent(dashFilter.categoria) : '')),
     fetch('/api/trend'),
+    fetch('/api/investments/live').catch(() => null),
   ]);
   const data = await dashRes.json();
+  let snapInv = null;
+  try { if (snapRes) snapInv = await snapRes.json(); } catch (e) { snapInv = null; }
 
   // Sync available months from API
   if (data.available_months && data.available_months.length > 0) {
@@ -1059,6 +1630,20 @@ async function loadDashboard() {
     currentDashMonthIdx = idx;
   }
 
+  // Sul mese più recente allinea la cella Investimenti alla FOTO mensile (valore
+  // fisso) e al carico preciso dai trade — così è coerente con la card Posizioni.
+  const isLatestMonth = !availableMonths || availableMonths.length === 0 ||
+                        currentDashMonthIdx >= availableMonths.length - 1;
+  if (isLatestMonth && snapInv && snapInv.totals && snapInv.totals.positions_valued > 0) {
+    const tv = snapInv.totals.value, tc = snapInv.totals.cost_basis;
+    data.valore_investimenti = tv;
+    data.controvalore_carico = tc;
+    if (data.patrimonio) {
+      data.patrimonio.investiti = tv;
+      data.patrimonio.totale = Math.round(((data.patrimonio.deposito || 0) + tv) * 100) / 100;
+    }
+  }
+
   // Month label
   const [y, mo] = currentDashMonth.split('-');
   const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -1071,17 +1656,24 @@ async function loadDashboard() {
   document.getElementById('dash-next-btn').disabled =
     currentDashMonthIdx >= availableMonths.length - 1;
 
-  // Reset interactive states when switching months
-  activePieIdx    = null;
-  activeTrendKey  = null;
   trendActiveMonth = null;
   lastCatBancaData = data.spese_per_cat_banca || {};
-  hideChartPopup();
+  // NB: non chiudere qui il popup — il cross-filter (click su torta/cella) lo apre
+  // e poi chiama loadDashboard per il re-render; chiuderlo qui lo farebbe sparire.
+  // La pulizia del popup avviene al cambio mese (changeMonth) e al click esterno.
+
+  // Sincronizza l'evidenziazione con il cross-filter attivo (NON azzerare dashFilter qui)
+  const sortedCats = Object.entries(data.spese_per_categoria || {}).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+  if (dashFilter.categoria && !sortedCats.includes(dashFilter.categoria)) dashFilter.categoria = null;
+  activePieIdx   = dashFilter.categoria ? sortedCats.indexOf(dashFilter.categoria) : null;
+  activeTrendKey = dashFilter.banca === 'Banca Generali' ? 'spese_bg'
+                 : dashFilter.banca === 'Trade Republic' ? 'spese_tr' : null;
 
   // Render all sections
   lastDashData = data;
   renderPieChart(data.spese_per_categoria, data.total_spese);
   renderQuadGrid(data);
+  renderDashChips();
 
   const trendData = await trendRes.json();
   renderTrendChart(trendData.series || []);
@@ -1094,7 +1686,11 @@ function renderPieChart(byCategoria, total) {
   const legendEl = document.getElementById('dash-pie-legend');
   const titleEl  = document.getElementById('dash-spese-title');
 
-  titleEl.textContent = 'Spese · ' + dbFormatEuro(total);
+  const _fcat = dashFilter.categoria;
+  const _fsp  = (lastDashData && lastDashData.filtered) ? lastDashData.filtered.spese_categoria : null;
+  titleEl.textContent = (_fcat && _fsp != null)
+    ? 'Spese · ' + _fcat + ' · ' + dbFormatEuro(_fsp)
+    : 'Spese · ' + dbFormatEuro(total);
 
   const entries = Object.entries(byCategoria || {}).sort((a, b) => b[1] - a[1]);
 
@@ -1143,16 +1739,13 @@ function renderPieChart(byCategoria, total) {
 
 function onPieClick(idx, event) {
   if (event) event.stopPropagation();
-  const wasActive = activePieIdx === idx;
-  activePieIdx = wasActive ? null : idx;
-  renderPieChart(lastPieData.byCategoria, lastPieData.total);
+  const cat = (lastPieData.sortedCats || [])[idx];
+  const wasActive = dashFilter.categoria === cat;
 
   if (!wasActive && event) {
-    const cat      = (lastPieData.sortedCats || [])[idx];
     const breakdown = lastCatBancaData[cat] || {};
     const color    = CAT_COLORS[cat] || DB_PALETTE[idx % DB_PALETTE.length];
     const BANCHE   = ['Trade Republic', 'Banca Generali'];
-
     const rows = BANCHE.map(b => {
       const v = breakdown[b];
       if (v == null) return '';
@@ -1161,17 +1754,18 @@ function onPieClick(idx, event) {
         <span style="font-size:13px;font-weight:600;color:#0b1220;">${dbFormatEuro(v)}</span>
       </div>`;
     }).join('');
-
     showChartPopup(`
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;"></span>
         <span style="font-size:12px;font-weight:700;color:#0b1220;">${esc(cat)}</span>
       </div>
       <div style="border-top:1px solid #f0f0f0;padding-top:8px;">${rows || '<span style="color:#94a3b8;font-size:12px;">Nessun dato per banca</span>'}</div>
+      ${popupLink('vedi transazioni', 'storico', {categoria: cat, month: currentDashMonth, tipo: 'spesa', banca: dashFilter.banca || undefined})}
     `, event);
   } else {
     hideChartPopup();
   }
+  setDashFilter('categoria', cat);   // toggle cross-filter + re-render (l'evidenziazione segue dashFilter)
 }
 
 function renderQuadGrid(data) {
@@ -1201,14 +1795,23 @@ function renderQuadGrid(data) {
   fillInvCell(cells[1], data);
   const bigBG = data.deposito_stimato_bg != null ? dbFormatEuro(data.deposito_stimato_bg) : dbFormatEuro(bg.saldo || 0);
   const bigTR = data.deposito_stimato_tr != null ? dbFormatEuro(data.deposito_stimato_tr) : dbFormatEuro(tr.saldo || 0);
-  fillCell(cells[2], bigBG, 'Banca Generali', [
-    { value: dbFormatEuro(bg.entrate || 0), label: 'Entrate' },
-    { value: dbFormatEuro(bg.uscite  || 0), label: 'Uscite'  },
-  ]);
-  fillCell(cells[3], bigTR, 'Trade Republic', [
-    { value: dbFormatEuro(tr.entrate || 0), label: 'Entrate' },
-    { value: dbFormatEuro(tr.uscite  || 0), label: 'Uscite'  },
-  ]);
+  const fcat = (data.filtered || {}).categoria;
+  const bgSubs = [{ value: dbFormatEuro(bg.entrate || 0), label: 'Entrate' }, { value: dbFormatEuro(bg.uscite || 0), label: 'Uscite' }];
+  const trSubs = [{ value: dbFormatEuro(tr.entrate || 0), label: 'Entrate' }, { value: dbFormatEuro(tr.uscite || 0), label: 'Uscite' }];
+  if (fcat && bg.uscite_cat != null) bgSubs.push({ value: dbFormatEuro(bg.uscite_cat), label: 'Uscite ' + fcat });
+  if (fcat && tr.uscite_cat != null) trSubs.push({ value: dbFormatEuro(tr.uscite_cat), label: 'Uscite ' + fcat });
+  fillCell(cells[2], bigBG, 'Banca Generali', bgSubs);
+  fillCell(cells[3], bigTR, 'Trade Republic', trSubs);
+
+  // Drill + cross-filter sulle celle
+  cells.forEach(c => { c.classList.remove('db-cell-sel', 'db-cell-dim'); c.style.cursor = 'pointer'; });
+  cells[0].onclick = () => switchPage('patrimonio');
+  cells[1].onclick = (e) => { if (e.target.closest('.inv-dot')) return; switchPage('dettaglio'); };
+  cells[2].onclick = (e) => onBankCellClick('Banca Generali', e);
+  cells[3].onclick = (e) => onBankCellClick('Trade Republic', e);
+  const fb = (data.filtered || {}).banca;
+  if (fb === 'Banca Generali')      { cells[2].classList.add('db-cell-sel'); cells[3].classList.add('db-cell-dim'); }
+  else if (fb === 'Trade Republic') { cells[3].classList.add('db-cell-sel'); cells[2].classList.add('db-cell-dim'); }
 }
 
 // ── Investment cell (top-right quad) ─────────────────────────────────────────
@@ -1516,6 +2119,91 @@ function onTrendDotClick(monthKey, event) {
   showChartPopup(`
     <div style="font-size:11px;font-weight:700;letter-spacing:0.05em;color:#6b7280;text-transform:uppercase;margin-bottom:9px;">${mlabel}</div>
     <ul style="list-style:none;padding:0;margin:0;max-height:240px;overflow-y:auto;">${rows}</ul>
+    ${popupLink('vedi transazioni', 'storico', {month: monthKey})}
+  `, event);
+}
+
+// ── Allocazione: popup dettaglio per classe / livello di rischio ──────────────
+function _holdingsRows(items) {
+  if (!items.length) return '<div style="font-size:12px;color:#94a3b8;">Nessun titolo (solo liquidità).</div>';
+  return items.map(p => `<div style="display:flex;justify-content:space-between;gap:18px;padding:3px 0;font-size:12px;">
+    <span style="color:#374151;">${esc(p.name)}</span>
+    <b style="color:#0b1220;white-space:nowrap;">${formatEuro(p.value)}</b></div>`).join('');
+}
+function onAllocClassClick(label, event) {
+  if (event) event.stopPropagation();
+  if (!lastAllocData) return;
+  const all = lastAllocData.holdings || [];
+  let items;
+  if (label === 'ETF')        items = all.filter(p => (p.type || 'S').toUpperCase() === 'ETF');
+  else if (label === 'Azioni') items = all.filter(p => (p.type || 'S').toUpperCase() !== 'ETF');
+  else items = [];   // Liquidità
+  const cls = (lastAllocData.allocation && lastAllocData.allocation.classes) || {};
+  const c = cls[label] || {};
+  showChartPopup(`
+    <div style="font-size:12px;font-weight:700;color:#0b1220;margin-bottom:8px;">${esc(label)} · ${formatEuro(c.value || 0)}${c.pct != null ? ' · ' + c.pct + '%' : ''}</div>
+    <div style="border-top:1px solid #f0f0f0;padding-top:8px;">${_holdingsRows(items)}</div>
+    ${items.length ? popupLink('vedi dettaglio titoli', 'dettaglio', {}) : ''}
+  `, event);
+}
+function onAllocRiskClick(level, event) {
+  if (event) event.stopPropagation();
+  if (!lastAllocData) return;
+  const b = (lastAllocData.risk_buckets || []).find(x => x.level === level);
+  if (!b) return;
+  // I nomi nel bucket includono "Liquidità"; abbino ai valori per-titolo quando disponibili
+  const byName = {};
+  (lastAllocData.holdings || []).forEach(p => { byName[p.name] = p.value; });
+  const rows = (b.holdings || []).map(n => `<div style="display:flex;justify-content:space-between;gap:18px;padding:3px 0;font-size:12px;">
+    <span style="color:#374151;">${esc(n)}</span>
+    <b style="color:#0b1220;white-space:nowrap;">${byName[n] != null ? formatEuro(byName[n]) : ''}</b></div>`).join('')
+    || '<div style="font-size:12px;color:#94a3b8;">Nessun titolo in questo livello.</div>';
+  showChartPopup(`
+    <div style="font-size:12px;font-weight:700;color:#0b1220;margin-bottom:8px;">Rischio ${esc(level)} · ${formatEuro(b.value || 0)} · ${b.pct}%</div>
+    <div style="border-top:1px solid #f0f0f0;padding-top:8px;">${rows}</div>
+  `, event);
+}
+
+// ── Andamento Patrimonio: popup del mese (liquidità + investimenti + totale) ──
+function onNetworthDotClick(month, event) {
+  if (event) event.stopPropagation();
+  if (!lastNetworthData) return;
+  const s = (lastNetworthData.series || []).find(x => x.month === month);
+  if (!s) return;
+  const MN = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  const [y, m] = month.split('-');
+  const row = (l, v, bold) => `<div style="display:flex;justify-content:space-between;gap:18px;padding:3px 0;font-size:12px;${bold ? 'border-top:1px solid #f0f0f0;margin-top:4px;padding-top:6px;' : ''}">
+    <span style="color:#6b7280;">${l}</span><b style="color:#0b1220;">${dbFormatEuro(v || 0)}</b></div>`;
+  showChartPopup(`
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.05em;color:#6b7280;text-transform:uppercase;margin-bottom:9px;">${MN[parseInt(m)-1]} ${y}</div>
+    ${row('Liquidità', s.cash)}${row('Investimenti', s.investiti)}${row('Patrimonio totale', s.totale, true)}
+    ${popupLink('vedi transazioni', 'storico', {month: month})}
+  `, event);
+}
+
+// ── Dettaglio Investimenti: popup di una posizione ────────────────────────────
+function onDetRowClick(isin, event) {
+  if (event) event.stopPropagation();
+  const p = (_detRows || []).find(x => x.isin === isin);
+  if (!p) return;
+  const gain = (p.unrealized != null) ? p.unrealized : ((p.value != null && p.cost_basis != null) ? p.value - p.cost_basis : null);
+  const pct  = (gain != null && p.cost_basis) ? (gain / Math.abs(p.cost_basis) * 100) : null;
+  const gc   = (gain == null) ? '#94a3b8' : (gain >= 0 ? '#10b981' : '#ef4444');
+  const row = (l, v) => `<div style="display:flex;justify-content:space-between;gap:18px;padding:3px 0;font-size:12px;"><span style="color:#6b7280;">${l}</span><b style="color:#0b1220;">${v}</b></div>`;
+  showChartPopup(`
+    <div style="font-size:12px;font-weight:700;color:#0b1220;margin-bottom:2px;">${esc(p.name)}</div>
+    <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">${p.isin || ''}${p.data_sottoscrizione ? ' · dal ' + p.data_sottoscrizione : ''}</div>
+    <div style="border-top:1px solid #f0f0f0;padding-top:8px;">
+      ${row('Quote', Number(p.shares).toLocaleString('it-IT', {maximumFractionDigits:4}))}
+      ${row('Prezzo medio', formatEuro(p.avg_cost))}
+      ${row('Carico', formatEuro(p.cost_basis))}
+      ${row('Ultimo prezzo', p.price_eur != null ? formatEuro(p.price_eur) : '—')}
+      ${row('Valore', p.value != null ? formatEuro(p.value) : '—')}
+      <div style="display:flex;justify-content:space-between;gap:18px;padding:3px 0;font-size:12px;border-top:1px solid #f0f0f0;margin-top:4px;padding-top:6px;">
+        <span style="color:#6b7280;">Guadagno/Perdita</span>
+        <b style="color:${gc};">${gain != null ? (gain >= 0 ? '+' : '') + formatEuro(gain) : '—'}${pct != null ? ' · ' + (pct >= 0 ? '+' : '') + pct.toFixed(2).replace('.', ',') + '%' : ''}</b>
+      </div>
+    </div>
   `, event);
 }
 
@@ -1592,8 +2280,16 @@ function renderCashMvBanner(count) {
   card.insertBefore(banner, card.firstChild);
 }
 
+let _storicoSearchTimer = null;
+function onStoricoSearchInput() {
+  clearTimeout(_storicoSearchTimer);
+  _storicoSearchTimer = setTimeout(loadStorico, 280);   // debounce
+}
+
 function updateStoricoClearBtn() {
+  const search = document.getElementById('filter-search');
   const active =
+    (search && search.value.trim())                   ||
     document.getElementById('filter-month').value    ||
     document.getElementById('filter-categoria').value ||
     document.getElementById('filter-banca').value     ||
@@ -1603,6 +2299,8 @@ function updateStoricoClearBtn() {
 }
 
 function clearStoricoFilters() {
+  const search = document.getElementById('filter-search');
+  if (search) search.value = '';
   document.getElementById('filter-month').value    = '';
   document.getElementById('filter-categoria').value = '';
   document.getElementById('filter-banca').value     = '';
@@ -1625,10 +2323,13 @@ async function loadStorico() {
 
 function buildStoricoParams() {
   const p = new URLSearchParams();
+  const searchEl = document.getElementById('filter-search');
+  const q = searchEl ? searchEl.value.trim() : '';
   const month = document.getElementById('filter-month').value;
   const cat = document.getElementById('filter-categoria').value;
   const banca = document.getElementById('filter-banca').value;
   const tipo = document.getElementById('filter-tipo').value;
+  if (q) p.set('q', q);
   if (month) p.set('month', month);
   if (cat) p.set('categoria', cat);
   if (banca) p.set('banca', banca);
@@ -2026,6 +2727,12 @@ document.addEventListener('DOMContentLoaded', () => {
   currentDashMonth = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
   initCategories();
   loadDashboard(); // open directly on dashboard
+
+  // Deep-link + modalità documentazione (per il PDF delle formule)
+  const _q = new URLSearchParams(location.search);
+  const _p = _q.get('page');
+  if (_p) switchPage(_p, {month:_q.get('month'), categoria:_q.get('categoria'), banca:_q.get('banca'), tipo:_q.get('tipo')});
+  if (_q.get('doc')) setTimeout(() => annotateForDoc(_p || 'dashboard'), 1700);
 
   // Close chart popup when clicking anywhere outside it
   document.addEventListener('click', (e) => {

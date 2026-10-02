@@ -95,7 +95,7 @@ def parse_investment_pdf(file_bytes: bytes) -> dict:
 
     # Step 2: Claude extracts structured data (ISIN, raw name, value, date)
     r1 = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=2048,
         system=EXTRACT_PROMPT,
         messages=[{"role": "user", "content": f"Analizza questo estratto conto:\n\n{pdf_text}"}],
@@ -116,7 +116,7 @@ def parse_investment_pdf(file_bytes: bytes) -> dict:
     # Step 3: Claude simplifies names (separate focused call)
     payload = [{"isin": p["isin"], "nome_raw": p["nome_raw"]} for p in positions]
     r2 = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-6",
         max_tokens=1024,
         system=SIMPLIFY_PROMPT,
         messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],

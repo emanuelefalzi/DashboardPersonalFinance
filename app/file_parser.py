@@ -1,5 +1,6 @@
 import io
 import re
+import csv
 import math
 import pandas as pd
 import pdfplumber
@@ -249,8 +250,9 @@ def parse_trade_republic_pdf(file_bytes, banca="Trade Republic"):
                     categoria = "Investimento"
                     importo   = -(abs(in_uscita or 0))
                 elif "SELL TRADE" in desc_up:
-                    tipo    = "entrata"
-                    importo = abs(in_entrata or 0)
+                    tipo      = "investimento"
+                    categoria = "Investimento"
+                    importo   = abs(in_entrata or 0)
                 elif "Bonifico" in tipo_text and in_entrata:
                     tipo    = "entrata"
                     importo = abs(in_entrata)
@@ -458,6 +460,128 @@ def parse_paypal(file_bytes, banca="PayPal", existing_transactions=None):
     return rows
 
 
+# ─── TRADE REPUBLIC CSV (nuovo export operazioni) ─────────────────────────────
+#
+# Trade Republic ora esporta le operazioni come CSV con colonne già strutturate
+# (date, amount, fee, tax, type, asset_class, name, symbol/ISIN, description,
+#  transaction_id, counterparty_name, mcc_code, …). I dati si leggono diretti:
+# nessuna AI serve per ESTRARLI — l'AI resta solo per interpretare descrizione e
+# categoria, esattamente come per Banca Generali.
+#
+# importo = amount + fee + tax  →  impatto netto reale sul conto
+#   (fee e tax sono già negativi quando presenti: SELL / DIVIDEND / interessi /
+#    bollo). Per le normali transazioni con carta fee e tax sono vuoti.
+
+# type → (tipo, causale base). La categoria fine la assegna poi l'AI o l'utente.
+TR_CSV_TYPE_MAP = {
+    "CARD_TRANSACTION":               ("spesa",        "Carta"),
+    "CARD_TRANSACTION_INTERNATIONAL": ("spesa",        "Carta"),
+    "BUY":                            ("investimento", "Investimento"),
+    "SELL":                           ("investimento", "Investimento"),
+    "DIVIDEND":                       ("entrata",      "Altro"),
+    "INTEREST_PAYMENT":               ("entrata",      "Altro"),
+    "BENEFITS_SAVEBACK":              ("entrata",      "Altro"),
+    "TAX_OPTIMIZATION":               ("spesa",        "Altro"),
+    "TRANSFER_INSTANT_INBOUND":       ("entrata",      "Bonifico"),
+    "TRANSFER_INSTANT_OUTBOUND":      ("spesa",        "Bonifico"),
+}
+
+
+def _strip_fx_noise(desc):
+    """Toglie la coda 'valuta estera' dalle descrizioni carta
+    (es. '…, 2,40 $, exchange rate: …, markup: …') e gli IBAN tra parentesi,
+    lasciando il nome del commerciante / la frase utile per l'AI."""
+    if not desc:
+        return ""
+    d = re.sub(r",?\s*exchange\s+rate:.*", "", desc, flags=re.I).strip()
+    d = re.sub(r"\s*\d[\d.,]*,?\s*markup:.*", "", d, flags=re.I).strip()
+    d = re.sub(r"\s*%null\b.*", "", d, flags=re.I).strip()
+    d = re.sub(r",\s*[\d.,]+\s*[A-Z]{0,3}\$\s*$", "", d).strip()
+    d = re.sub(r"\s*\([A-Z]{2}\d{2}[A-Z0-9]+\)", "", d).strip()   # IBAN tra ()
+    return d
+
+
+def _is_trade_republic_csv(file_bytes):
+    """Riconosce il CSV di Trade Republic dalla riga di intestazione."""
+    try:
+        head = file_bytes[:4096].decode("utf-8-sig", errors="ignore").lower()
+        first_line = head.splitlines()[0] if head else ""
+        return "transaction_id" in first_line and "asset_class" in first_line
+    except Exception:
+        return False
+
+
+def parse_trade_republic_csv(file_bytes, banca="Trade Republic"):
+    text = file_bytes.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+
+    rows = []
+    for r in reader:
+        raw_date = (r.get("date") or "").strip()
+        # Il CSV di TR ha la data già in ISO (YYYY-MM-DD): usala diretta.
+        # NON passarla da _parse_date (è day-first, inadatto all'ISO → invertirebbe
+        # giorno e mese, es. 2026-04-01 → 2026-01-04).
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", raw_date):
+            data = raw_date
+        else:
+            data = _parse_date(raw_date)
+        if not data:
+            continue
+
+        amount = _clean_amount(r.get("amount")) or 0.0
+        fee    = _clean_amount(r.get("fee"))    or 0.0
+        tax    = _clean_amount(r.get("tax"))    or 0.0
+        importo = round(amount + fee + tax, 2)
+        if importo == 0:
+            continue   # righe senza impatto di cassa
+
+        ttype = (r.get("type") or "").strip().upper()
+        name  = (r.get("name") or "").strip()
+        descr = _strip_fx_noise((r.get("description") or "").strip()) or name or ttype
+
+        tipo, causale = TR_CSV_TYPE_MAP.get(
+            ttype, ("entrata" if importo >= 0 else "spesa", "Altro")
+        )
+        categoria = "Investimento" if ttype in ("BUY", "SELL", "DIVIDEND") else "?"
+
+        row = {
+            "data":           data,
+            "causale":        causale,
+            "descrizione":    descr,
+            "importo":        importo,
+            "categoria":      categoria,
+            "banca":          banca,
+            "tipo":           tipo,
+            "transaction_id": (r.get("transaction_id") or "").strip(),
+        }
+
+        # Dettaglio trade per il costo di carico — SOLO acquisti/vendite di titoli.
+        # Questi campi NON entrano nel CSV cassa: vengono persistiti a parte
+        # (investment_lots.json) e alimentano il motore costo medio.
+        # NB: migrazioni/saveback/dividendi NON sono lotti (le migrazioni sono
+        # coppie a saldo zero, i saveback sono cassa, i dividendi non muovono quote).
+        if ttype in ("BUY", "SELL"):
+            isin   = (r.get("symbol") or "").strip()
+            shares = _clean_amount(r.get("shares"))
+            price  = _clean_amount(r.get("price"))
+            if isin and shares:
+                row["_lot"] = {
+                    "transaction_id": row["transaction_id"],
+                    "date":   data,
+                    "isin":   isin,
+                    "name":   name,
+                    "side":   ttype,
+                    "shares": round(abs(shares), 8),
+                    "price":  round(price, 6) if price is not None else None,
+                    "gross":  round(abs(amount), 2),
+                    "fee":    round(abs(fee), 2),
+                    "tax":    round(abs(tax), 2),
+                }
+
+        rows.append(row)
+    return rows
+
+
 # ─── DISPATCHER ───────────────────────────────────────────────────────────────
 
 def parse_file(file_bytes, filename, banca, existing_transactions=None):
@@ -468,6 +592,8 @@ def parse_file(file_bytes, filename, banca, existing_transactions=None):
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext == "pdf":
         return parse_trade_republic_pdf(file_bytes, banca)   # already a tuple
+    elif ext == "csv" and (banca == "Trade Republic" or _is_trade_republic_csv(file_bytes)):
+        return parse_trade_republic_csv(file_bytes), None
     elif banca == "PayPal" or ext == "csv":
         return parse_paypal(file_bytes, banca, existing_transactions), None
     elif ext in ("xls", "xlsx"):
