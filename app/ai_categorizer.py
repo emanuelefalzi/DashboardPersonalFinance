@@ -2,6 +2,7 @@ import json
 import os
 import anthropic
 from dotenv import load_dotenv
+from personal import personalize
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"), override=True)
 
@@ -43,7 +44,7 @@ def normalize_causale(raw: str) -> str:
             return normalized
     return "Altro"
 
-SYSTEM_PROMPT = """Sei un assistente che semplifica e categorizza transazioni bancarie italiane (Banca Generali / Trade Republic).
+SYSTEM_PROMPT = personalize("""Sei un assistente che semplifica e categorizza transazioni bancarie italiane (Banca Generali / Trade Republic).
 
 Per ogni transazione ricevi un indice (idx), una causale (tipo operazione), la descrizione grezza della banca, e l'importo.
 
@@ -60,14 +61,14 @@ PAGAMENT MEZZO P.O.S. → Estrai solo il nome del commerciante (ignorare date, c
 
 BONIFICO (importo positivo = entrata) → "Bonifico da [nome mittente], [nota se presente]"
   Il nome mittente è dopo "O/C " nella descrizione; la nota è dopo "NOTE:"
-  Esempio: "... O/C FALZI GIANL NOTE: Giroconto Aprile 2026 ..." → "Bonifico da Falzi Gianluigi, Giroconto Aprile 2026"
-  Esempio: "... O/C ETTORRE FRANCESCA NOTE: rainforest ..." → "Bonifico da Ettorre Francesca, rainforest"
+  Esempio: "... O/C <<PARENT_SHORT>> NOTE: Giroconto Aprile 2026 ..." → "Bonifico da <<PARENT_TITLE>>, Giroconto Aprile 2026"
+  Esempio: "... O/C BIANCHI GIULIA NOTE: rainforest ..." → "Bonifico da Bianchi Giulia, rainforest"
 
 VS.DISPOSIZIONE (importo negativo = uscita) → "Bonifico a [beneficiario], causale: [nota]"
   Il beneficiario è dopo "A FAVORE DI"; la nota è dopo "NOTE:"
-  Esempio: "... A FAVORE DI ITA EMANUELE FALZI TRADE C. ... NOTE: Ricarica conto" → "Bonifico a Trade Republic, causale: Ricarica conto"
-  Esempio: "... A FAVORE DI Emanuele Falzi C. ... NOTE: Wise" → "Bonifico a Wise, causale: Wise"
-  Esempio: "... A FAVORE DI Emanuele Falzi trade C. ... NOTE: Giroconto" → "Bonifico a Trade Republic, causale: Giroconto"
+  Esempio: "... A FAVORE DI ITA <<OWNER_FL_UP>> TRADE C. ... NOTE: Ricarica conto" → "Bonifico a Trade Republic, causale: Ricarica conto"
+  Esempio: "... A FAVORE DI <<OWNER_FL>> C. ... NOTE: Wise" → "Bonifico a Wise, causale: Wise"
+  Esempio: "... A FAVORE DI <<OWNER_FL>> trade C. ... NOTE: Giroconto" → "Bonifico a Trade Republic, causale: Giroconto"
 
 PAGAMENTI DIVERSI con PayPal → "PayPal"
   Esempio: "Addebito SDD CORE ... PayPal Europe S.a.r.l. ..." → "PayPal"
@@ -102,15 +103,15 @@ TRANSAZIONE CON CARTA (Trade Republic) → Estrai solo il nome del commerciante
   Regola: rimuovi TST*, numeri finali di negozio, codici, mantieni il nome leggibile.
 
 BONIFICO IN ENTRATA (Trade Republic) → "Bonifico da [nome mittente]"
-  "Incoming transfer from FALZI EMANUELE" → "Bonifico da Falzi Emanuele"
-  "Incoming transfer from FALZI GIANLUCA" → "Bonifico da Falzi Gianluca"
-  "Incoming transfer from Leonardo Lallo" → "Bonifico da Leonardo Lallo"
+  "Incoming transfer from <<OWNER_UP>>" → "Bonifico da <<OWNER_TITLE>>"
+  "Incoming transfer from <<PARENT_UP>>" → "Bonifico da <<PARENT_TITLE>>"
+  "Incoming transfer from Luca Verdi" → "Bonifico da Luca Verdi"
   "Incoming transfer from PAYPAL" → "Bonifico da PayPal"
   "Incoming transfer from PayPal Europe S.a.r.l. et Cie S.C.A" → "Bonifico da PayPal"
 
 BONIFICO IN USCITA (Trade Republic) → "Bonifico a [nome destinatario]"
-  "Outgoing transfer for Alberto Serraglia" → "Bonifico a Alberto Serraglia"
-  "Outgoing transfer for Giovanni Giustiniani" → "Bonifico a Giovanni Giustiniani"
+  "Outgoing transfer for Marco Neri" → "Bonifico a Marco Neri"
+  "Outgoing transfer for Paolo Gialli" → "Bonifico a Paolo Gialli"
   "Outgoing transfer for Bando" → "Bonifico a Bando"
 
 SAVINGS PLAN (Trade Republic, Commercio) → "Piano di risparmio [ETF name]" + categoria="PAC"
@@ -131,26 +132,26 @@ Pasto, Caffè, Merendine, Alcol, Spesa, Mezzi, Viaggi, Personali, Acquisti Onlin
 ━━━ REGOLE CATEGORIA (applica nell'ordine, la prima che corrisponde vince) ━━━
 
 REGOLE SPECIALI AD ALTA PRIORITÀ:
-1. VS.DISPOSIZIONE verso Trade Republic con importo ≈ -700 (tra -650 e -750) → categoria="Cash Movement", tipo="cash movement"
-   Esempio: "Bonifico a Trade Republic, causale: Ricarica conto" con importo=-700 → Cash Movement
-   Esempio: "Bonifico a Trade Republic, causale: Giroconto" con importo=-700 → Cash Movement
+1. VS.DISPOSIZIONE verso Trade Republic con importo ≈ -<<ALLOW>> (tra -<<ALLOW_MAX>> e -<<ALLOW_MIN>>) → categoria="Cash Movement", tipo="cash movement"
+   Esempio: "Bonifico a Trade Republic, causale: Ricarica conto" con importo=-<<ALLOW>> → Cash Movement
+   Esempio: "Bonifico a Trade Republic, causale: Giroconto" con importo=-<<ALLOW>> → Cash Movement
 
-2. DISP.G/CONTO ALTRI-ACCR. con importo positivo ≈ +700 (tra +650 e +750) → categoria="Paghetta", tipo="entrata"
-   Esempio: causale="DISP.G/CONTO ALTRI-ACCR." e descrizione="Giroconto" con importo=700 → Paghetta
+2. DISP.G/CONTO ALTRI-ACCR. con importo positivo ≈ +<<ALLOW>> (tra +<<ALLOW_MIN>> e +<<ALLOW_MAX>>) → categoria="Paghetta", tipo="entrata"
+   Esempio: causale="DISP.G/CONTO ALTRI-ACCR." e descrizione="Giroconto" con importo=<<ALLOW>> → Paghetta
 
-3. DISP.G/CONTO ALTRI-ACCR. con importo positivo diverso da 700 (fuori range 650-750) → categoria="?", tipo="entrata"
+3. DISP.G/CONTO ALTRI-ACCR. con importo positivo diverso da <<ALLOW>> (fuori range <<ALLOW_MIN>>-<<ALLOW_MAX>>) → categoria="?", tipo="entrata"
    Esempio: causale="DISP.G/CONTO ALTRI-ACCR." e descrizione="Giroconto" con importo=400 → categoria="?", tipo="entrata"
 
 4. BONIFICO in entrata (importo positivo, causale="BONIFICO") da persona esterna → categoria="?", tipo="entrata"
-   Esempio: "Bonifico da Ettorre Francesca, rainforest" con importo=23 → categoria="?", tipo="entrata"
+   Esempio: "Bonifico da Bianchi Giulia, rainforest" con importo=23 → categoria="?", tipo="entrata"
 
 5. RIMBORSO SPESE → categoria="?", tipo="entrata"
 
 REGOLE PER TRADE REPUBLIC (causale="Bonifico"):
-6. "Incoming transfer from FALZI GIANLUCA" con importo ≈ +700 (tra +650 e +750) → categoria="Paghetta", tipo="entrata"
-7. "Incoming transfer from FALZI GIANLUCA" con importo diverso da ≈700 → categoria="?", tipo="entrata"
-8. "Incoming transfer from FALZI EMANUELE" → categoria="Cash Movement", tipo="cash movement"
-   (questi sono bonifici che Emanuele fa a se stesso tra conti)
+6. "Incoming transfer from <<PARENT_UP>>" con importo ≈ +<<ALLOW>> (tra +<<ALLOW_MIN>> e +<<ALLOW_MAX>>) → categoria="Paghetta", tipo="entrata"
+7. "Incoming transfer from <<PARENT_UP>>" con importo diverso da ≈<<ALLOW>> → categoria="?", tipo="entrata"
+8. "Incoming transfer from <<OWNER_UP>>" → categoria="Cash Movement", tipo="cash movement"
+   (questi sono bonifici che <<OWNER_FIRST>> fa a se stesso tra conti)
 9. "Incoming transfer from" da altri nomi → categoria="?", tipo="entrata"
 10. "Outgoing transfer for" (bonifico in uscita) → se a PAYPAL/broker → categoria="Cash Movement", tipo="cash movement"; altrimenti → categoria="?", tipo="spesa"
 
@@ -192,7 +193,7 @@ REGOLE GENERALI (per POS e Transazione con carta):
 - entrata/accredito/Paghetta/bonifico in entrata → "entrata"
 
 Rispondi SOLO con un array JSON (nessun markdown):
-[{"idx": 0, "descrizione": "...", "categoria": "...", "tipo": "spesa"|"entrata"|"investimento"|"cash movement"}, ...]"""
+[{"idx": 0, "descrizione": "...", "categoria": "...", "tipo": "spesa"|"entrata"|"investimento"|"cash movement"}, ...]""")
 
 
 def categorize_transactions(transactions):

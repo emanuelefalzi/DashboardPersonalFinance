@@ -10,17 +10,18 @@ import os
 import json
 import anthropic
 from dotenv import load_dotenv
+from personal import personalize
 
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"), override=True)
 
 MODEL = "claude-sonnet-4-6"
 
-SYSTEM_PROMPT = """Sei un assistente che abbina i rimborsi alle transazioni di un utente italiano.
+SYSTEM_PROMPT = personalize("""Sei un assistente che abbina i rimborsi alle transazioni di un utente italiano.
 
 Contesto fisso:
 - I bonifici IN ENTRATA (tranne la "Paghetta") sono quasi sempre rimborsi dal padre.
 - Categorie TIPICAMENTE rimborsate: vestiti/scarpe, benzina/carburante, pesce.
-- "spesa a Fiorenzuola" è INCERTA: includila SOLO se l'utente la nomina esplicitamente.
+- "<<REIMB_UNCERTAIN>>" è INCERTA: includila SOLO se l'utente la nomina esplicitamente.
 - Il totale delle spese rimborsate deve essere ≈ all'importo dei rimborsi in entrata.
 
 Compito:
@@ -29,7 +30,7 @@ Compito:
    con totale ≈ all'importo dei rimborsi → "expense_idx". Sii prudente sugli ambigui.
 
 Usa SOLO gli _idx forniti. Rispondi SOLO con JSON valido, senza markdown:
-{"incoming_idx": [..], "expense_idx": [..], "nota": "breve spiegazione in italiano"}"""
+{"incoming_idx": [..], "expense_idx": [..], "nota": "breve spiegazione in italiano"}""")
 
 
 def suggest(text, incoming, expenses):
