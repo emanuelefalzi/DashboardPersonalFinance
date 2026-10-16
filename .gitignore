@@ -1,0 +1,26 @@
+# Chiave API — non caricare mai su GitHub
+.env
+
+# Dati personali finanziari
+data/transactions.csv
+data/investments.json
+data/onboarding.json
+data/investment_lots.json
+data/price_cache.json
+data/backups/
+data/rimborsi_pending.json
+data/dashboard.log
+data/*.log
+
+# File di sistema
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.claude/
+
+# Ambiente virtuale Python
+.venv/
+
+# Dati personali usati nei prompt (vedi data/personal.example.json)
+data/personal.json

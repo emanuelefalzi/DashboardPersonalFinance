@@ -1,0 +1,8 @@
+flask
+pandas
+pdfplumber
+openpyxl
+xlrd
+anthropic
+python-dotenv
+python-dateutil

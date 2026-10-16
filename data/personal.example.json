@@ -1,0 +1,10 @@
+{
+  "owner_first": "Mario",
+  "owner_last": "Rossi",
+  "parent_first": "Giuseppe",
+  "parent_last": "Rossi",
+  "allowance_amount": 500,
+  "allowance_min": 450,
+  "allowance_max": 550,
+  "reimburse_uncertain": "spesa al supermercato"
+}
